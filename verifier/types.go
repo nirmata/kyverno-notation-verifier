@@ -2,8 +2,10 @@ package verifier
 
 import "fmt"
 
-var CertFile = "/certs/tls.crt"
-var KeyFile = "/certs/tls.key"
+var (
+	CertFile = "/certs/tls.crt"
+	KeyFile  = "/certs/tls.key"
+)
 
 type image struct {
 	// Registry is the URL address of the image registry e.g. `docker.io`

@@ -26,19 +26,19 @@ import (
 )
 
 type verifier struct {
-	logger               *zap.SugaredLogger
-	kubeClient           *kubernetes.Clientset
-	notationVerifier     notation.Verifier
-	informerFactory      kubeinformers.SharedInformerFactory
-	secretLister         corev1listers.SecretNamespaceLister
-	configMapLister      corev1listers.ConfigMapNamespaceLister
-	providerAuthConfig   authn.AuthConfig
-	imagePullSecrets     string
-	insecureRegistry     bool
-	pluginConfigMap      string
-	maxSignatureAttempts int
-	debug                bool
-	stopCh               chan struct{}
+	logger                     *zap.SugaredLogger
+	kubeClient                 *kubernetes.Clientset
+	notationVerifier           notation.Verifier
+	informerFactory            kubeinformers.SharedInformerFactory
+	secretLister               corev1listers.SecretNamespaceLister
+	configMapLister            corev1listers.ConfigMapNamespaceLister
+	providerAuthConfigResolver func(context.Context, string) (authn.AuthConfig, error)
+	imagePullSecrets           string
+	insecureRegistry           bool
+	pluginConfigMap            string
+	maxSignatureAttempts       int
+	debug                      bool
+	stopCh                     chan struct{}
 }
 
 type verifierOptsFunc func(*verifier)
@@ -73,9 +73,9 @@ func WithEnableDebug(debug bool) verifierOptsFunc {
 	}
 }
 
-func WithProviderAuthConfig(providerAuthConfig authn.AuthConfig) verifierOptsFunc {
+func WithProviderAuthConfig(providerAuthConfigResolver func(context.Context, string) (authn.AuthConfig, error)) verifierOptsFunc {
 	return func(v *verifier) {
-		v.providerAuthConfig = providerAuthConfig
+		v.providerAuthConfigResolver = providerAuthConfigResolver
 	}
 }
 

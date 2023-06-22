@@ -16,7 +16,7 @@ func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (a
 		return v.getAuthFromSecret(ctx, ref)
 	}
 
-	return v.providerAuthConfigResolver(ctx, ref.String())
+	return v.providerAuthConfigResolver(ctx, ref)
 }
 
 func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference) (authn.AuthConfig, error) {

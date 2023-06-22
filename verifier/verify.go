@@ -73,7 +73,7 @@ func WithEnableDebug(debug bool) verifierOptsFunc {
 	}
 }
 
-func WithProviderAuthConfig(providerAuthConfigResolver func(context.Context, registry.Reference) (authn.AuthConfig, error)) verifierOptsFunc {
+func WithProviderAuthConfigResolver(providerAuthConfigResolver func(context.Context, registry.Reference) (authn.AuthConfig, error)) verifierOptsFunc {
 	return func(v *verifier) {
 		v.providerAuthConfigResolver = providerAuthConfigResolver
 	}

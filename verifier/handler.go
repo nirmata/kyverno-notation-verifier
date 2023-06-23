@@ -14,7 +14,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestData requestData
+	var requestData RequestData
 	//err := json.NewDecoder(r.Body).Decode(&requestData)
 	raw, _ := io.ReadAll(r.Body)
 	err := json.Unmarshal(raw, &requestData)
@@ -24,16 +24,16 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(requestData.Images.Containers) == 0 &&
-		len(requestData.Images.InitContainers) == 0 &&
-		len(requestData.Images.EphemeralContainers) == 0 {
+	if len(requestData.Containers) == 0 &&
+		len(requestData.InitContainers) == 0 &&
+		len(requestData.EphemeralContainers) == 0 {
 		log.Printf("missing images in %v", requestData)
 		http.Error(w, "missing required parameter 'images'", http.StatusNotAcceptable)
 		return
 	}
 
 	ctx := context.Background()
-	data, err := v.verifyImages(ctx, &requestData.Images)
+	data, err := v.verifyImages(ctx, &requestData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

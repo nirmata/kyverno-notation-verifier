@@ -124,10 +124,10 @@ func (v *verifier) Stop() {
 	v.stopCh <- struct{}{}
 }
 
-func (v *verifier) verifyImages(ctx context.Context, images *imageInfos) ([]byte, error) {
-	response := responseData{
+func (v *verifier) verifyImages(ctx context.Context, images *RequestData) ([]byte, error) {
+	response := ResponseData{
 		Allow:   false,
-		Results: make([]result, 0),
+		Results: make([]Result, 0),
 	}
 
 	for _, image := range images.Containers {
@@ -138,7 +138,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *imageInfos) ([]byte
 		}
 
 		image.Digest = digest
-		response.Results = append(response.Results, result{
+		response.Results = append(response.Results, Result{
 			Name:  image.Name,
 			Path:  image.Pointer,
 			Image: image.string(),
@@ -153,7 +153,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *imageInfos) ([]byte
 		}
 
 		image.Digest = digest
-		response.Results = append(response.Results, result{
+		response.Results = append(response.Results, Result{
 			Name:  image.Name,
 			Path:  image.Pointer,
 			Image: image.string(),
@@ -168,7 +168,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *imageInfos) ([]byte
 		}
 
 		image.Digest = digest
-		response.Results = append(response.Results, result{
+		response.Results = append(response.Results, Result{
 			Name:  image.Name,
 			Path:  image.Pointer,
 			Image: image.string(),

@@ -7,7 +7,7 @@ var (
 	KeyFile  = "/certs/tls.key"
 )
 
-type image struct {
+type Image struct {
 	// Registry is the URL address of the image registry e.g. `docker.io`
 	Registry string `json:"registry,omitempty"`
 
@@ -24,7 +24,7 @@ type image struct {
 	Digest string `json:"digest,omitempty"`
 }
 
-func (i *image) string() string {
+func (i *Image) string() string {
 	var image string
 	if i.Registry != "" {
 		image = fmt.Sprintf("%s/%s", i.Registry, i.Path)
@@ -38,25 +38,25 @@ func (i *image) string() string {
 	}
 }
 
-type imageInfo struct {
-	image
+type ImageInfo struct {
+	Image
 
 	// Pointer is the path to the image object in the resource
 	Pointer string `json:"jsonPointer"`
 }
 
-type imageInfos struct {
+type ImageInfos struct {
 	// InitContainers is a map of init containers image data from the AdmissionReview request, key is the container name
-	InitContainers map[string]imageInfo `json:"initContainers,omitempty"`
+	InitContainers map[string]ImageInfo `json:"initContainers,omitempty"`
 
 	// Containers is a map of containers image data from the AdmissionReview request, key is the container name
-	Containers map[string]imageInfo `json:"containers,omitempty"`
+	Containers map[string]ImageInfo `json:"containers,omitempty"`
 
 	// EphemeralContainers is a map of ephemeral containers image data from the AdmissionReview request, key is the container name
-	EphemeralContainers map[string]imageInfo `json:"ephemeralContainers,omitempty"`
+	EphemeralContainers map[string]ImageInfo `json:"ephemeralContainers,omitempty"`
 }
 
-type result struct {
+type Result struct {
 	// Name of the container
 	Name string `json:"name"`
 
@@ -67,11 +67,13 @@ type result struct {
 	Image string `json:"image"`
 }
 
-type requestData struct {
-	Images imageInfos
+// Data format of request body for HandleCheckImages
+type RequestData struct {
+	ImageInfos
 }
 
-type responseData struct {
+// Data format of response body for HandleCheckImages
+type ResponseData struct {
 	// Allow is true when all the images are verified.
 	Allow bool `json:"allow"`
 
@@ -79,5 +81,5 @@ type responseData struct {
 	Message string `json:"message,omitempty"`
 
 	// Results contains the list of containers in JSONPatch format
-	Results []result `json:"results"`
+	Results []Result `json:"results"`
 }

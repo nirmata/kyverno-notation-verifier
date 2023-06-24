@@ -126,12 +126,12 @@ func (v *verifier) Stop() {
 
 func (v *verifier) verifyImages(ctx context.Context, images *RequestData) ([]byte, error) {
 	response := ResponseData{
-		Allow:   false,
-		Results: make([]Result, 0),
+		Verified: false,
+		Results:  make([]Result, 0),
 	}
 
 	for _, image := range images.Containers {
-		digest, err := v.verifyImage(ctx, image.string())
+		digest, err := v.verifyImage(ctx, image.String())
 		if err != nil {
 			v.logger.Errorf("verification failed for image %s: %v", image, err)
 			return nil, errors.Wrapf(err, "failed to verify image %s", image)
@@ -141,12 +141,12 @@ func (v *verifier) verifyImages(ctx context.Context, images *RequestData) ([]byt
 		response.Results = append(response.Results, Result{
 			Name:  image.Name,
 			Path:  image.Pointer,
-			Image: image.string(),
+			Image: image.String(),
 		})
 	}
 
 	for _, image := range images.InitContainers {
-		digest, err := v.verifyImage(ctx, image.string())
+		digest, err := v.verifyImage(ctx, image.String())
 		if err != nil {
 			v.logger.Errorf("verification failed for image %s: %v", image, err)
 			return nil, errors.Wrapf(err, "failed to verify image %s", image)
@@ -156,12 +156,12 @@ func (v *verifier) verifyImages(ctx context.Context, images *RequestData) ([]byt
 		response.Results = append(response.Results, Result{
 			Name:  image.Name,
 			Path:  image.Pointer,
-			Image: image.string(),
+			Image: image.String(),
 		})
 	}
 
 	for _, image := range images.EphemeralContainers {
-		digest, err := v.verifyImage(ctx, image.string())
+		digest, err := v.verifyImage(ctx, image.String())
 		if err != nil {
 			v.logger.Errorf("verification failed for image %s: %v", image, err)
 			return nil, errors.Wrapf(err, "failed to verify image %s", image)
@@ -171,9 +171,12 @@ func (v *verifier) verifyImages(ctx context.Context, images *RequestData) ([]byt
 		response.Results = append(response.Results, Result{
 			Name:  image.Name,
 			Path:  image.Pointer,
-			Image: image.string(),
+			Image: image.String(),
 		})
 	}
+
+	response.Verified = true
+	v.logger.Infof("verified %d containers %d initContainers %d ephemeralContainers", images.Containers, images.InitContainers, images.EphemeralContainers)
 
 	data, err := json.MarshalIndent(response, "  ", "  ")
 	if err != nil {

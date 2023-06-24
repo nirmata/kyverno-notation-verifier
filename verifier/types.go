@@ -24,7 +24,7 @@ type Image struct {
 	Digest string `json:"digest,omitempty"`
 }
 
-func (i *Image) string() string {
+func (i *Image) String() string {
 	var image string
 	if i.Registry != "" {
 		image = fmt.Sprintf("%s/%s", i.Registry, i.Path)
@@ -74,8 +74,8 @@ type RequestData struct {
 
 // Data format of response body for HandleCheckImages
 type ResponseData struct {
-	// Allow is true when all the images are verified.
-	Allow bool `json:"allow"`
+	// Verified is true when all the images are verified.
+	Verified bool `json:"verified"`
 
 	// Message contains an optional custom message to send as a response.
 	Message string `json:"message,omitempty"`

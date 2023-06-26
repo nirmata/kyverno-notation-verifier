@@ -1,6 +1,10 @@
 package verifier
 
-import "fmt"
+import (
+	"fmt"
+
+	imageutils "github.com/kyverno/kyverno/pkg/utils/image"
+)
 
 var (
 	CertFile = "/certs/tls.crt"
@@ -39,7 +43,7 @@ func (i *Image) String() string {
 }
 
 type ImageInfo struct {
-	Image
+	imageutils.ImageInfo
 
 	// Pointer is the path to the image object in the resource
 	Pointer string `json:"jsonPointer"`

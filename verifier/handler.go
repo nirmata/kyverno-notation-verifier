@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
+	"reflect"
 )
 
 func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
@@ -24,14 +24,12 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data []byte = make([]byte, 0)
-	if len(requestData.Containers) == 0 &&
-		len(requestData.InitContainers) == 0 &&
-		len(requestData.EphemeralContainers) == 0 {
-		log.Printf("missing images in %v", requestData)
+	data := make([]byte, 0)
+	if reflect.ValueOf(requestData.Images).IsZero() {
+		v.logger.Infof("images variable not found")
 	} else {
 		ctx := context.Background()
-		data, err = v.verifyImages(ctx, &requestData)
+		data, err = v.verifyImages(ctx, &requestData.Images)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -40,7 +40,7 @@ type Result struct {
 
 // Data format of request body for HandleCheckImages
 type RequestData struct {
-	ImageInfos
+	Images ImageInfos `json:"images"`
 }
 
 // Data format of response body for HandleCheckImages

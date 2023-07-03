@@ -30,7 +30,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		ctx := context.Background()
-		data, err := v.verifyImages(ctx, &requestData.Images)
+		data, err := v.verifyImagesAndAttestations(ctx, &requestData)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

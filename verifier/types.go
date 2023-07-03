@@ -16,6 +16,14 @@ type ImageInfo struct {
 	Pointer string `json:"jsonPointer"`
 }
 
+type AttestationsInfo struct {
+	// Image references are the regex of the images containing these attestations
+	ImageReference string `json:"imageReference"`
+
+	// type is a list of all the attestation types to check in these images
+	Type []string `json:"type"`
+}
+
 type ImageInfos struct {
 	// InitContainers is a map of init containers image data from the AdmissionReview request, key is the container name
 	InitContainers map[string]ImageInfo `json:"initContainers,omitempty"`
@@ -27,7 +35,7 @@ type ImageInfos struct {
 	EphemeralContainers map[string]ImageInfo `json:"ephemeralContainers,omitempty"`
 }
 
-type Result struct {
+type Image struct {
 	// Name of the container
 	Name string `json:"name"`
 
@@ -38,9 +46,24 @@ type Result struct {
 	Image string `json:"image"`
 }
 
+type Attestation struct {
+	// Type is the artifact type of the attestation
+	Type string `json:"type"`
+
+	// Image the attestation was linked to
+	Image string `json:"image"`
+
+	// Payload is the contents of the attestation
+	Payload map[string]interface{} `json:"payload"`
+}
+
 // Data format of request body for HandleCheckImages
 type RequestData struct {
+	// List of images in the form of kyverno's image variable
 	Images ImageInfos `json:"images"`
+
+	// List of image regex and attestations
+	Attestations []AttestationsInfo `json:"attestations"`
 }
 
 // Data format of response body for HandleCheckImages
@@ -51,6 +74,9 @@ type ResponseData struct {
 	// Message contains an optional custom message to send as a response.
 	Message string `json:"message,omitempty"`
 
-	// Results contains the list of containers in JSONPatch format
-	Results []Result `json:"results"`
+	// Images contains the list of containers in JSONPatch format
+	Images []Image `json:"results"`
+
+	// Attestations is the list of all the verified attestation
+	Attestations []Attestation `json:"attestations"`
 }

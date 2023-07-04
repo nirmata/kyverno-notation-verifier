@@ -207,7 +207,7 @@ func (v *verifier) verifyAttestations(ctx context.Context, attestationList map[s
 }
 
 func (v *verifier) verifyAttestation(ctx context.Context, image string, attestationList map[string]bool) ([]Attestation, error) {
-	attestations := make([]Attestation, 0)
+	attestations := make([]Attestation, len(attestationList))
 	remoteOpts, err := v.getRemoteOpts(ctx, image)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get gcr remote opts")
@@ -233,7 +233,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, image string, attestat
 		return nil, err
 	}
 
-	for _, referrer := range referrersDescs.Manifests {
+	for i, referrer := range referrersDescs.Manifests {
 		if !attestationList[referrer.ArtifactType] {
 			continue
 		}
@@ -249,12 +249,11 @@ func (v *verifier) verifyAttestation(ctx context.Context, image string, attestat
 			return nil, errors.Wrapf(err, "failed to extract payload")
 		}
 
-		attestations = append(attestations, Attestation{
+		attestations[i] = Attestation{
 			Type:    referrer.ArtifactType,
 			Image:   referrerRef,
 			Payload: payload,
-		})
-
+		}
 	}
 	return attestations, nil
 }
@@ -267,6 +266,9 @@ func (v *verifier) extractPayload(ctx context.Context, repoRef name.Reference, d
 	}
 
 	manifestDesc, err := gcrremote.Get(ref, options...)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error in fetching statement")
+	}
 	manifestBytes, err := manifestDesc.RawManifest()
 	if err != nil {
 		return nil, errors.Wrapf(err, "error in fetching statement")

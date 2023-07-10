@@ -1,4 +1,4 @@
-module github.com/nirmata/kyverno-notation-aws
+module github.com/nirmata/kyverno-notation-verifier
 
 go 1.19
 

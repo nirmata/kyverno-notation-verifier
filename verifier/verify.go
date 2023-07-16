@@ -216,6 +216,10 @@ func (v *verifier) verifyAttestations(ctx context.Context, imageList map[string]
 }
 
 func (v *verifier) verifyAttestation(ctx context.Context, image string, attestationList map[string]bool) ([]Attestation, error) {
+	if len(attestationList) == 0 {
+		return []Attestation{}, nil
+	}
+
 	attestations := make([]Attestation, len(attestationList))
 	remoteOpts, err := v.getRemoteOpts(ctx, image)
 	if err != nil {
@@ -248,6 +252,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, image string, attestat
 		}
 
 		referrerRef := v.getReference(referrer, ref)
+
 		_, err := v.verifyReferences(ctx, referrerRef)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get referrer of artifact type %s", referrer.ArtifactType)

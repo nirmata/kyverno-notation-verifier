@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -150,6 +151,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				break
 			}
 			response.Images = append(response.Images, *result)
+			imageList[image.String()] = make(map[string]bool)
 		}
 		v.logger.Infof("verified %d containers ", requestData.Images.Containers)
 	}
@@ -164,6 +166,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				break
 			}
 			response.Images = append(response.Images, *result)
+			imageList[image.String()] = make(map[string]bool)
 		}
 		v.logger.Infof("verified %d initContainers", requestData.Images.InitContainers)
 	}
@@ -178,11 +181,23 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				break
 			}
 			response.Images = append(response.Images, *result)
+			imageList[image.String()] = make(map[string]bool)
 		}
 		v.logger.Infof("verified %d ephemeralContainers", requestData.Images.EphemeralContainers)
 	}
 
 	if !verificationFailed {
+		for _, attestation := range requestData.Attestations {
+			var imagePattern = regexp.MustCompile(attestation.ImageReference)
+			for image := range imageList {
+				if imagePattern.MatchString(image) {
+					for _, attestationType := range attestation.Type {
+						imageList[image][attestationType] = true
+					}
+				}
+			}
+		}
+
 		response.Attestations, err = v.verifyAttestations(ctx, imageList)
 		if err != nil {
 			verificationFailed = true

@@ -135,7 +135,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	verificationFailed := false
 
 	response := ResponseData{
-		Verified:     false,
+		Verified:     true,
 		Images:       make([]Image, 0),
 		Attestations: make([]Attestation, 0),
 	}
@@ -146,7 +146,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify container %s: %s", image.Name, err.Error())
+				response.Message = fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error())
 				break
 			}
 			response.Images = append(response.Images, *result)
@@ -160,7 +160,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify init container %s: %s", image.Name, err.Error())
+				response.Message = fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error())
 				break
 			}
 			response.Images = append(response.Images, *result)
@@ -174,7 +174,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify ephemeral container: %s: %s", image.Name, err.Error())
+				response.Message = fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error())
 				break
 			}
 			response.Images = append(response.Images, *result)
@@ -182,16 +182,19 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 		v.logger.Infof("verified %d ephemeralContainers", requestData.Images.EphemeralContainers)
 	}
 
+	if !verificationFailed {
+		response.Attestations, err = v.verifyAttestations(ctx, imageList)
+		if err != nil {
+			verificationFailed = true
+			response.Verified = false
+			response.Message = fmt.Sprintf("failed to verify attestatations: %v", err.Error())
+		}
+	}
+
 	if verificationFailed {
 		response.Images = nil
+		response.Attestations = nil
 	}
-
-	response.Attestations, err = v.verifyAttestations(ctx, imageList)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to verify attestatations: %v", err)
-	}
-	response.Verified = true
-
 	data, err := json.MarshalIndent(response, "  ", "  ")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal response")
@@ -200,9 +203,9 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	return data, nil
 }
 
-func (v *verifier) verifyAttestations(ctx context.Context, attestationList map[string](map[string]bool)) ([]Attestation, error) {
+func (v *verifier) verifyAttestations(ctx context.Context, imageList map[string](map[string]bool)) ([]Attestation, error) {
 	attestations := make([]Attestation, 0)
-	for image, list := range attestationList {
+	for image, list := range imageList {
 		imageAttestations, err := v.verifyAttestation(ctx, image, list)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to verify attestations")

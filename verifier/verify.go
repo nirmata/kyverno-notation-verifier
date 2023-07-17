@@ -13,6 +13,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	gcrremote "github.com/google/go-containerregistry/pkg/v1/remote"
+	kyvernocfg "github.com/kyverno/kyverno/pkg/config"
+	enginecontext "github.com/kyverno/kyverno/pkg/engine/context"
+	"github.com/kyverno/kyverno/pkg/engine/jmespath"
 	"github.com/notaryproject/notation-go"
 	notationlog "github.com/notaryproject/notation-go/log"
 	notationregistry "github.com/notaryproject/notation-go/registry"
@@ -44,6 +47,7 @@ type verifier struct {
 	maxSignatureAttempts       int
 	debug                      bool
 	stopCh                     chan struct{}
+	engineContext              enginecontext.Interface
 }
 
 type verifierOptsFunc func(*verifier)
@@ -109,6 +113,9 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	v.informerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(v.kubeClient, 15*time.Minute, kubeinformers.WithNamespace(namespace))
 	v.secretLister = v.informerFactory.Core().V1().Secrets().Lister().Secrets(namespace)
 	v.configMapLister = v.informerFactory.Core().V1().ConfigMaps().Lister().ConfigMaps(namespace)
+
+	var jp = jmespath.New(kyvernocfg.NewDefaultConfiguration(false))
+	v.engineContext = enginecontext.NewContext(jp)
 
 	for _, o := range opts {
 		o(v)
@@ -221,7 +228,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, image string, attestat
 			return errors.Wrapf(err, "failed to get referrer of artifact type %s", referrer.ArtifactType)
 		}
 
-		payload, err := v.extractPayload(ctx, ref, referrer, remoteOpts...)
+		_, err = v.extractPayload(ctx, ref, referrer, remoteOpts...)
 		if err != nil {
 			return errors.Wrapf(err, "failed to extract payload")
 		}

@@ -1,6 +1,10 @@
 package verifier
 
-import "errors"
+import (
+	"encoding/json"
+
+	"github.com/pkg/errors"
+)
 
 type Response struct {
 	ImageList map[string]AttestationList
@@ -31,26 +35,20 @@ func (r *Response) GetImageList() map[string]AttestationList {
 	return r.ImageList
 }
 
-func (r *Response) ContinueVerifying() bool {
-	return r.GetResponse().Verified
-}
-
-func (r *Response) VerificationFailed(msg string) {
-	if !r.ContinueVerifying() {
-		return
-	}
-
+func (r *Response) VerificationFailed(msg string) ([]byte, error) {
 	r.ResponseData.Verified = false
 	r.ResponseData.Message = msg
 	r.ResponseData.Images = nil
 	r.ResponseData.Attestations = nil
+
+	data, err := json.MarshalIndent(r.ResponseData, "  ", "  ")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to marshal response")
+	}
+	return data, nil
 }
 
 func (r *Response) AddImage(img *ImageInfo) {
-	if !r.ContinueVerifying() {
-		return
-	}
-
 	imageData := Image{
 		Name:  img.Name,
 		Path:  img.Pointer,
@@ -68,4 +66,14 @@ func (r *Response) AddAttestations(img string, att string) error {
 		return errors.New("Image not found in image list")
 	}
 	return nil
+}
+
+func (r *Response) VerificationSucceeded(msg string) ([]byte, error) {
+	r.ResponseData.Message = msg
+
+	data, err := json.MarshalIndent(r.ResponseData, "  ", "  ")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to marshal response")
+	}
+	return data, nil
 }

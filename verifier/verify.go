@@ -134,66 +134,53 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	response := NewResponse()
 	var err error
 
-	if response.ContinueVerifying() {
-		for _, image := range requestData.Images.Containers {
-			result, err := v.verifyImageInfo(ctx, image)
-			if err != nil {
-				response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
-			}
-			response.AddImage(result)
+	for _, image := range requestData.Images.Containers {
+		result, err := v.verifyImageInfo(ctx, image)
+		if err != nil {
+			return response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
 		}
-		v.logger.Infof("verified %d containers ", requestData.Images.Containers)
+		response.AddImage(result)
 	}
+	v.logger.Infof("verified %d containers ", requestData.Images.Containers)
 
-	if response.ContinueVerifying() {
-		for _, image := range requestData.Images.InitContainers {
-			result, err := v.verifyImageInfo(ctx, image)
-			if err != nil {
-				response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
-			}
-			response.AddImage(result)
+	for _, image := range requestData.Images.InitContainers {
+		result, err := v.verifyImageInfo(ctx, image)
+		if err != nil {
+			return response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
 		}
-		v.logger.Infof("verified %d initContainers", requestData.Images.InitContainers)
+		response.AddImage(result)
 	}
+	v.logger.Infof("verified %d initContainers", requestData.Images.InitContainers)
 
-	if response.ContinueVerifying() {
-		for _, image := range requestData.Images.EphemeralContainers {
-			result, err := v.verifyImageInfo(ctx, image)
-			if err != nil {
-				response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
-			}
-			response.AddImage(result)
+	for _, image := range requestData.Images.EphemeralContainers {
+		result, err := v.verifyImageInfo(ctx, image)
+		if err != nil {
+			return response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
 		}
-		v.logger.Infof("verified %d ephemeralContainers", requestData.Images.EphemeralContainers)
+		response.AddImage(result)
 	}
+	v.logger.Infof("verified %d ephemeralContainers", requestData.Images.EphemeralContainers)
 
-	if response.ContinueVerifying() {
-		for _, attestation := range requestData.Attestations {
-			var imagePattern = regexp.MustCompile(attestation.ImageReference)
-			for image := range response.GetImageList() {
-				if imagePattern.MatchString(image) {
-					for _, attestationType := range attestation.Type {
-						err := response.AddAttestations(image, attestationType)
-						if err != nil {
-							return nil, errors.Wrapf(err, "failed to create attestation list")
-						}
+	for _, attestation := range requestData.Attestations {
+		var imagePattern = regexp.MustCompile(attestation.ImageReference)
+		for image := range response.GetImageList() {
+			if imagePattern.MatchString(image) {
+				for _, attestationType := range attestation.Type {
+					err := response.AddAttestations(image, attestationType)
+					if err != nil {
+						return nil, errors.Wrapf(err, "failed to create attestation list")
 					}
 				}
 			}
 		}
-
-		response.ResponseData.Attestations, err = v.verifyAttestations(ctx, response.GetImageList())
-		if err != nil {
-			response.VerificationFailed(fmt.Sprintf("failed to verify attestatations: %v", err.Error()))
-		}
 	}
 
-	data, err := json.MarshalIndent(response, "  ", "  ")
+	response.ResponseData.Attestations, err = v.verifyAttestations(ctx, response.GetImageList())
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal response")
+		return response.VerificationFailed(fmt.Sprintf("failed to verify attestatations: %v", err.Error()))
 	}
 
-	return data, nil
+	return response.VerificationSucceeded("")
 }
 
 func (v *verifier) verifyAttestations(ctx context.Context, imageList map[string]AttestationList) ([]Attestation, error) {

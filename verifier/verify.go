@@ -256,9 +256,8 @@ func (v *verifier) verifyConditions(ctx context.Context, repoRef name.Reference,
 	if err != nil {
 		return err
 	}
-
 	if !val {
-		return errors.Wrapf(err, "failed to evaluate conditions: %s", msg)
+		return errors.Errorf("failed to evaluate conditions: %s", msg)
 	}
 	return nil
 }

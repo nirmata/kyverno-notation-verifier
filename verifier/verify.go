@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -161,18 +160,8 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	}
 	v.logger.Infof("verified %d ephemeralContainers", requestData.Images.EphemeralContainers)
 
-	for _, attestation := range requestData.Attestations {
-		var imagePattern = regexp.MustCompile(attestation.ImageReference)
-		for image := range response.GetImageList() {
-			if imagePattern.MatchString(image) {
-				for _, attestationType := range attestation.Type {
-					err := response.AddAttestations(image, attestationType)
-					if err != nil {
-						return nil, errors.Wrapf(err, "failed to create attestation list")
-					}
-				}
-			}
-		}
+	if err := response.BuildAttestationList(requestData.Attestations); err != nil {
+		return nil, errors.Wrapf(err, "failed to create attestation list")
 	}
 
 	response.ResponseData.Attestations, err = v.verifyAttestations(ctx, response.GetImageList())

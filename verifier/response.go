@@ -2,6 +2,7 @@ package verifier
 
 import (
 	"encoding/json"
+	"regexp"
 
 	"github.com/pkg/errors"
 )
@@ -76,4 +77,20 @@ func (r *Response) VerificationSucceeded(msg string) ([]byte, error) {
 		return nil, errors.Wrapf(err, "failed to marshal response")
 	}
 	return data, nil
+}
+
+func (r *Response) BuildAttestationList(Attestations []AttestationsInfo) error {
+	for _, attestation := range Attestations {
+		var imagePattern = regexp.MustCompile(attestation.ImageReference)
+		for image := range r.ImageList {
+			if imagePattern.MatchString(image) {
+				for _, attestationType := range attestation.Type {
+					if err := r.AddAttestations(image, attestationType); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
 }

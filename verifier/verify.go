@@ -134,7 +134,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	response := NewResponse()
 	var err error
 
-	if response.IsVerified() {
+	if response.ContinueVerifying() {
 		for _, image := range requestData.Images.Containers {
 			result, err := v.verifyImageInfo(ctx, image)
 			if err != nil {
@@ -145,7 +145,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 		v.logger.Infof("verified %d containers ", requestData.Images.Containers)
 	}
 
-	if response.IsVerified() {
+	if response.ContinueVerifying() {
 		for _, image := range requestData.Images.InitContainers {
 			result, err := v.verifyImageInfo(ctx, image)
 			if err != nil {
@@ -156,7 +156,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 		v.logger.Infof("verified %d initContainers", requestData.Images.InitContainers)
 	}
 
-	if response.IsVerified() {
+	if response.ContinueVerifying() {
 		for _, image := range requestData.Images.EphemeralContainers {
 			result, err := v.verifyImageInfo(ctx, image)
 			if err != nil {
@@ -167,7 +167,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 		v.logger.Infof("verified %d ephemeralContainers", requestData.Images.EphemeralContainers)
 	}
 
-	if response.IsVerified() {
+	if response.ContinueVerifying() {
 		for _, attestation := range requestData.Attestations {
 			var imagePattern = regexp.MustCompile(attestation.ImageReference)
 			for image := range response.GetImageList() {

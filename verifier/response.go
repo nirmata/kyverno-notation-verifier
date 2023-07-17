@@ -31,12 +31,12 @@ func (r *Response) GetImageList() map[string]AttestationList {
 	return r.ImageList
 }
 
-func (r *Response) IsVerified() bool {
+func (r *Response) ContinueVerifying() bool {
 	return r.GetResponse().Verified
 }
 
 func (r *Response) VerificationFailed(msg string) {
-	if !r.IsVerified() {
+	if !r.ContinueVerifying() {
 		return
 	}
 
@@ -47,7 +47,7 @@ func (r *Response) VerificationFailed(msg string) {
 }
 
 func (r *Response) AddImage(img *ImageInfo) {
-	if !r.IsVerified() {
+	if !r.ContinueVerifying() {
 		return
 	}
 

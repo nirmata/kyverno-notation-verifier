@@ -131,85 +131,63 @@ func (v *verifier) Stop() {
 }
 
 func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData *RequestData) ([]byte, error) {
-	imageList := make(map[string](map[string]bool))
+	response := NewResponse()
 	var err error
-	verificationFailed := false
 
-	response := ResponseData{
-		Verified:     true,
-		Images:       make([]Image, 0),
-		Attestations: make([]Attestation, 0),
-	}
-
-	if !verificationFailed {
+	if response.IsVerified() {
 		for _, image := range requestData.Images.Containers {
 			result, err := v.verifyImageInfo(ctx, image)
 			if err != nil {
-				verificationFailed = true
-				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error())
-				break
+				response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
 			}
-			response.Images = append(response.Images, *result)
-			imageList[image.String()] = make(map[string]bool)
+			response.AddImage(result)
 		}
 		v.logger.Infof("verified %d containers ", requestData.Images.Containers)
 	}
 
-	if !verificationFailed {
+	if response.IsVerified() {
 		for _, image := range requestData.Images.InitContainers {
 			result, err := v.verifyImageInfo(ctx, image)
 			if err != nil {
-				verificationFailed = true
-				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error())
-				break
+				response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
 			}
-			response.Images = append(response.Images, *result)
-			imageList[image.String()] = make(map[string]bool)
+			response.AddImage(result)
 		}
 		v.logger.Infof("verified %d initContainers", requestData.Images.InitContainers)
 	}
 
-	if !verificationFailed {
+	if response.IsVerified() {
 		for _, image := range requestData.Images.EphemeralContainers {
 			result, err := v.verifyImageInfo(ctx, image)
 			if err != nil {
-				verificationFailed = true
-				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error())
-				break
+				response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
 			}
-			response.Images = append(response.Images, *result)
-			imageList[image.String()] = make(map[string]bool)
+			response.AddImage(result)
 		}
 		v.logger.Infof("verified %d ephemeralContainers", requestData.Images.EphemeralContainers)
 	}
 
-	if !verificationFailed {
+	if response.IsVerified() {
 		for _, attestation := range requestData.Attestations {
 			var imagePattern = regexp.MustCompile(attestation.ImageReference)
-			for image := range imageList {
+			for image := range response.GetImageList() {
 				if imagePattern.MatchString(image) {
 					for _, attestationType := range attestation.Type {
-						imageList[image][attestationType] = true
+						err := response.AddAttestations(image, attestationType)
+						if err != nil {
+							return nil, errors.Wrapf(err, "failed to create attestation list")
+						}
 					}
 				}
 			}
 		}
 
-		response.Attestations, err = v.verifyAttestations(ctx, imageList)
+		response.ResponseData.Attestations, err = v.verifyAttestations(ctx, response.GetImageList())
 		if err != nil {
-			verificationFailed = true
-			response.Verified = false
-			response.Message = fmt.Sprintf("failed to verify attestatations: %v", err.Error())
+			response.VerificationFailed(fmt.Sprintf("failed to verify attestatations: %v", err.Error()))
 		}
 	}
 
-	if verificationFailed {
-		response.Images = nil
-		response.Attestations = nil
-	}
 	data, err := json.MarshalIndent(response, "  ", "  ")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal response")
@@ -218,7 +196,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	return data, nil
 }
 
-func (v *verifier) verifyAttestations(ctx context.Context, imageList map[string](map[string]bool)) ([]Attestation, error) {
+func (v *verifier) verifyAttestations(ctx context.Context, imageList map[string]AttestationList) ([]Attestation, error) {
 	attestations := make([]Attestation, 0)
 	for image, list := range imageList {
 		imageAttestations, err := v.verifyAttestation(ctx, image, list)
@@ -230,7 +208,7 @@ func (v *verifier) verifyAttestations(ctx context.Context, imageList map[string]
 	return attestations, nil
 }
 
-func (v *verifier) verifyAttestation(ctx context.Context, image string, attestationList map[string]bool) ([]Attestation, error) {
+func (v *verifier) verifyAttestation(ctx context.Context, image string, attestationList AttestationList) ([]Attestation, error) {
 	if len(attestationList) == 0 {
 		return []Attestation{}, nil
 	}
@@ -336,20 +314,15 @@ func (v *verifier) extractPayload(ctx context.Context, repoRef name.Reference, d
 	return predicate, nil
 }
 
-func (v *verifier) verifyImageInfo(ctx context.Context, image ImageInfo) (*Image, error) {
+func (v *verifier) verifyImageInfo(ctx context.Context, image ImageInfo) (*ImageInfo, error) {
 	v.logger.Infof("verifying image infos %+v", image)
 	digest, err := v.verifyReferences(ctx, image.String())
 	if err != nil {
 		v.logger.Errorf("verification failed for image %s: %v", image, err)
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
 	}
-
 	image.Digest = digest
-	return &Image{
-		Name:  image.Name,
-		Path:  image.Pointer,
-		Image: image.String(),
-	}, nil
+	return &image, nil
 }
 
 func (v *verifier) verifyReferences(ctx context.Context, image string) (string, error) {

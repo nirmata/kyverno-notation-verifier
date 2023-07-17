@@ -80,3 +80,5 @@ type ResponseData struct {
 	// Attestations is the list of all the verified attestation
 	Attestations []Attestation `json:"attestations"`
 }
+
+type AttestationList map[string]bool

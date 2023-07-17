@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"regexp"
 
+	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/pkg/errors"
 )
 
@@ -19,7 +20,6 @@ func NewResponse() *Response {
 	responseData := ResponseData{
 		Verified:     true,
 		Images:       make([]Image, 0),
-		Attestations: make([]Attestation, 0),
 	}
 
 	return &Response{
@@ -40,7 +40,6 @@ func (r *Response) VerificationFailed(msg string) ([]byte, error) {
 	r.ResponseData.Verified = false
 	r.ResponseData.Message = msg
 	r.ResponseData.Images = nil
-	r.ResponseData.Attestations = nil
 
 	data, err := json.MarshalIndent(r.ResponseData, "  ", "  ")
 	if err != nil {
@@ -60,9 +59,14 @@ func (r *Response) AddImage(img *ImageInfo) {
 	r.ImageList[img.String()] = make(AttestationList)
 }
 
-func (r *Response) AddAttestations(img string, att string) error {
+func (r *Response) AddAttestations(img string, att AttestationType) error {
 	if _, found := r.ImageList[img]; found {
-		r.ImageList[img][att] = true
+		if _, ok := r.ImageList[img][att.Name]; ok {
+			r.ImageList[img][att.Name] = append(r.ImageList[img][att.Name], att.Conditions)
+		} else {
+			r.ImageList[img][att.Name] = make([]kyvernov1.AnyAllConditions, 1)
+			r.ImageList[img][att.Name][0] = att.Conditions
+		}
 	} else {
 		return errors.New("Image not found in image list")
 	}

@@ -131,7 +131,6 @@ func (v *verifier) Stop() {
 
 func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData *RequestData) ([]byte, error) {
 	response := NewResponse()
-	var err error
 
 	for _, image := range requestData.Images.Containers {
 		result, err := v.verifyImageInfo(ctx, image)
@@ -164,59 +163,54 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 		return nil, errors.Wrapf(err, "failed to create attestation list")
 	}
 
-	response.ResponseData.Attestations, err = v.verifyAttestations(ctx, response.GetImageList())
-	if err != nil {
+	if err := v.verifyAttestations(ctx, response); err != nil {
 		return response.VerificationFailed(fmt.Sprintf("failed to verify attestatations: %v", err.Error()))
 	}
 
 	return response.VerificationSucceeded("")
 }
 
-func (v *verifier) verifyAttestations(ctx context.Context, imageList map[string]AttestationList) ([]Attestation, error) {
-	attestations := make([]Attestation, 0)
-	for image, list := range imageList {
-		imageAttestations, err := v.verifyAttestation(ctx, image, list)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to verify attestations")
+func (v *verifier) verifyAttestations(ctx context.Context, response *Response) error {
+	for image, list := range response.GetImageList() {
+		if err := v.verifyAttestation(ctx, image, list); err != nil {
+			return errors.Wrapf(err, "failed to verify attestations")
 		}
-		attestations = append(attestations, imageAttestations...)
 	}
-	return attestations, nil
+	return nil
 }
 
-func (v *verifier) verifyAttestation(ctx context.Context, image string, attestationList AttestationList) ([]Attestation, error) {
+func (v *verifier) verifyAttestation(ctx context.Context, image string, attestationList AttestationList) error {
 	if len(attestationList) == 0 {
-		return []Attestation{}, nil
+		return nil
 	}
 
-	attestations := make([]Attestation, len(attestationList))
 	remoteOpts, err := v.getRemoteOpts(ctx, image)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get gcr remote opts")
+		return errors.Wrapf(err, "failed to get gcr remote opts")
 	}
 
 	ref, err := name.ParseReference(image)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse image reference: %s", image)
+		return errors.Wrapf(err, "failed to parse image reference: %s", image)
 	}
 
 	refDesc, err := gcrremote.Head(ref, remoteOpts...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get gcr remote head")
+		return errors.Wrapf(err, "failed to get gcr remote head")
 	}
 
 	referrers, err := gcrremote.Referrers(ref.Context().Digest(refDesc.Digest.String()), remoteOpts...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get gcr remote referrers")
+		return errors.Wrapf(err, "failed to get gcr remote referrers")
 	}
 
 	referrersDescs, err := referrers.IndexManifest()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	for i, referrer := range referrersDescs.Manifests {
-		if !attestationList[referrer.ArtifactType] {
+	for _, referrer := range referrersDescs.Manifests {
+		if _, found := attestationList[referrer.ArtifactType]; !found {
 			continue
 		}
 
@@ -224,21 +218,15 @@ func (v *verifier) verifyAttestation(ctx context.Context, image string, attestat
 
 		_, err := v.verifyReferences(ctx, referrerRef)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get referrer of artifact type %s", referrer.ArtifactType)
+			return errors.Wrapf(err, "failed to get referrer of artifact type %s", referrer.ArtifactType)
 		}
 
 		payload, err := v.extractPayload(ctx, ref, referrer, remoteOpts...)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to extract payload")
-		}
-
-		attestations[i] = Attestation{
-			Type:    referrer.ArtifactType,
-			Image:   referrerRef,
-			Payload: payload,
+			return errors.Wrapf(err, "failed to extract payload")
 		}
 	}
-	return attestations, nil
+	return nil
 }
 
 func (v *verifier) extractPayload(ctx context.Context, repoRef name.Reference, desc v1.Descriptor, options ...gcrremote.Option) (map[string]interface{}, error) {

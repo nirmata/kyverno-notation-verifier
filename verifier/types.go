@@ -17,7 +17,7 @@ type ImageInfo struct {
 	Pointer string `json:"jsonPointer"`
 }
 
-type Type struct {
+type AttestationType struct {
 	// Name is the media type of the attestation
 	Name string `json:"name"`
 
@@ -31,7 +31,7 @@ type AttestationsInfo struct {
 	ImageReference string `json:"imageReference"`
 
 	// type is a list of all the attestation types to check in these images
-	Type []Type `json:"type"`
+	Type []AttestationType `json:"type"`
 }
 
 type ImageInfos struct {
@@ -86,9 +86,6 @@ type ResponseData struct {
 
 	// Images contains the list of containers in JSONPatch format
 	Images []Image `json:"results"`
-
-	// Attestations is the list of all the verified attestation
-	Attestations []Attestation `json:"attestations"`
 }
 
-type AttestationList map[string]bool
+type AttestationList map[string][]kyvernov1.AnyAllConditions

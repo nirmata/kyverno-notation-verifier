@@ -19,7 +19,7 @@ type ImageInfo struct {
 
 type Type struct {
 	// Name is the media type of the attestation
-	Name string `json:"type"`
+	Name string `json:"name"`
 
 	// Conditions are used to determine if a policy rule should be applied by evaluating a
 	// set of conditions. The declaration can contain nested `any` or `all` statements.

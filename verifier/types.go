@@ -56,17 +56,6 @@ type Image struct {
 	Image string `json:"image"`
 }
 
-type Attestation struct {
-	// Type is the artifact type of the attestation
-	Type string `json:"type"`
-
-	// Image the attestation was linked to
-	Image string `json:"image"`
-
-	// Payload is the contents of the attestation
-	Payload map[string]interface{} `json:"payload"`
-}
-
 // Data format of request body for HandleCheckImages
 type RequestData struct {
 	// List of images in the form of kyverno's image variable

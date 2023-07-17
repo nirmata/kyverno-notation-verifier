@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	v1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"gotest.tools/assert"
 )
 
@@ -34,14 +35,47 @@ var (
     {
       "imageReference": "*",
       "type": [
-        "sbom/cyclone-dx",
-        "application/sarif+json"
+        {
+          "name": "sbom/cyclone-dx",
+          "conditions": {
+            "all" : [
+              {
+                "key":"{{request.operation}}",
+                "operator": "Equals",
+                "value":"UPDATE"
+              }
+            ]
+          } 
+        },
+        {
+          "name": "application/sarif+json",
+          "conditions": {
+            "all" : [
+              {
+                "key":"{{request.operation}}",
+                "operator": "Equals",
+                "value":"UPDATE"
+              }
+            ]
+          } 
+        }
       ]
     },
     {
       "imageReference": "844333597536.dkr.ecr.us-west-2.amazonaws.com/kyverno-demo:*",
       "type": [
-        "application/vnd.cyclonedx"
+        {
+          "name": "application/vnd.cyclonedx",
+          "conditions": {
+            "all" : [
+              {
+                "key":"{{request.operation}}",
+                "operator": "Equals",
+                "value":"UPDATE"
+              }
+            ]
+          } 
+        }
       ]
     }
   ]
@@ -61,6 +95,9 @@ func TestInput(t *testing.T) {
 	assert.Equal(t, len(requestData.Attestations), 2)
 	assert.Equal(t, requestData.Attestations[0].ImageReference, "*")
 	assert.Equal(t, len(requestData.Attestations[0].Type), 2)
-	assert.Equal(t, requestData.Attestations[0].Type[0], "sbom/cyclone-dx")
+	assert.Equal(t, len(requestData.Attestations[0].Type[0].Conditions.AnyConditions), 0)
+	assert.Equal(t, len(requestData.Attestations[0].Type[0].Conditions.AllConditions), 1)
+	assert.Equal(t, requestData.Attestations[0].Type[0].Conditions.AllConditions[0].Operator, v1.ConditionOperator("Equals"))
+	assert.Equal(t, requestData.Attestations[0].Type[0].Name, "sbom/cyclone-dx")
 	assert.Equal(t, requestData.Attestations[1].ImageReference, "844333597536.dkr.ecr.us-west-2.amazonaws.com/kyverno-demo:*")
 }

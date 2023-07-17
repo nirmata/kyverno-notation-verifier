@@ -18,8 +18,8 @@ func NewResponse() *Response {
 	imageList := make(map[string]AttestationList)
 
 	responseData := ResponseData{
-		Verified:     true,
-		Images:       make([]Image, 0),
+		Verified: true,
+		Images:   make([]Image, 0),
 	}
 
 	return &Response{
@@ -34,18 +34,6 @@ func (r *Response) GetResponse() ResponseData {
 
 func (r *Response) GetImageList() map[string]AttestationList {
 	return r.ImageList
-}
-
-func (r *Response) VerificationFailed(msg string) ([]byte, error) {
-	r.ResponseData.Verified = false
-	r.ResponseData.Message = msg
-	r.ResponseData.Images = nil
-
-	data, err := json.MarshalIndent(r.ResponseData, "  ", "  ")
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal response")
-	}
-	return data, nil
 }
 
 func (r *Response) AddImage(img *ImageInfo) {
@@ -71,6 +59,18 @@ func (r *Response) AddAttestations(img string, att AttestationType) error {
 		return errors.New("Image not found in image list")
 	}
 	return nil
+}
+
+func (r *Response) VerificationFailed(msg string) ([]byte, error) {
+	r.ResponseData.Verified = false
+	r.ResponseData.Message = msg
+	r.ResponseData.Images = nil
+
+	data, err := json.MarshalIndent(r.ResponseData, "  ", "  ")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to marshal response")
+	}
+	return data, nil
 }
 
 func (r *Response) VerificationSucceeded(msg string) ([]byte, error) {

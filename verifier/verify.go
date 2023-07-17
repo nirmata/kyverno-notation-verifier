@@ -9,13 +9,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	gcrremote "github.com/google/go-containerregistry/pkg/v1/remote"
+	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	kyvernocfg "github.com/kyverno/kyverno/pkg/config"
 	enginecontext "github.com/kyverno/kyverno/pkg/engine/context"
 	"github.com/kyverno/kyverno/pkg/engine/jmespath"
+	"github.com/kyverno/kyverno/pkg/engine/variables"
 	"github.com/notaryproject/notation-go"
 	notationlog "github.com/notaryproject/notation-go/log"
 	notationregistry "github.com/notaryproject/notation-go/registry"
@@ -221,6 +224,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, image string, attestat
 			continue
 		}
 
+		conditions := attestationList[referrer.ArtifactType]
 		referrerRef := v.getReference(referrer, ref)
 
 		_, err := v.verifyReferences(ctx, referrerRef)
@@ -228,10 +232,33 @@ func (v *verifier) verifyAttestation(ctx context.Context, image string, attestat
 			return errors.Wrapf(err, "failed to get referrer of artifact type %s", referrer.ArtifactType)
 		}
 
-		_, err = v.extractPayload(ctx, ref, referrer, remoteOpts...)
-		if err != nil {
+		if err := v.verifyConditions(ctx, ref, referrer, conditions, remoteOpts...); err != nil {
 			return errors.Wrapf(err, "failed to extract payload")
 		}
+	}
+	return nil
+}
+
+func (v *verifier) verifyConditions(ctx context.Context, repoRef name.Reference, desc v1.Descriptor, conditions []kyvernov1.AnyAllConditions, options ...gcrremote.Option) error {
+	v.engineContext.Checkpoint()
+	defer v.engineContext.Restore()
+
+	payload, err := v.extractPayload(ctx, repoRef, desc, options...)
+	if err != nil {
+		return err
+	}
+
+	if err := enginecontext.AddJSONObject(v.engineContext, payload); err != nil {
+		return fmt.Errorf("failed to add Statement to the context: %w", err)
+	}
+
+	val, msg, err := variables.EvaluateAnyAllConditions(logr.Discard(), v.engineContext, conditions)
+	if err != nil {
+		return err
+	}
+
+	if !val {
+		return errors.Wrapf(err, "failed to evaluate conditions: %s", msg)
 	}
 	return nil
 }

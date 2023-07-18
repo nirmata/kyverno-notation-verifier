@@ -24,6 +24,12 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := validateRequestData(&requestData); err != nil {
+		v.logger.Infof("Missing required data: %v", err)
+		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		return
+	}
+
 	if reflect.ValueOf(requestData.Images).IsZero() {
 		v.logger.Infof("images variable not found")
 		http.Error(w, "missing required parameter 'images'", http.StatusNotAcceptable)

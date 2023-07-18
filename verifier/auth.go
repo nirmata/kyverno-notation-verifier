@@ -16,6 +16,10 @@ func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (a
 		return v.getAuthFromSecret(ctx, ref)
 	}
 
+	if v.providerAuthConfigResolver == nil {
+		return authn.AuthConfig{}, errors.New("AUTHENTICATION ERROR: authentication failed, no secret or auth config resolver provided")
+	}
+
 	return v.providerAuthConfigResolver(ctx, ref)
 }
 

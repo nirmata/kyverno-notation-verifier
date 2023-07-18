@@ -139,7 +139,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify container %s: %s", image.Name, err.Error())
+				response.ErrorMessage = fmt.Sprintf("failed to verify container %s: %s", image.Name, err.Error())
 				break
 			}
 			response.Results = append(response.Results, *result)
@@ -153,7 +153,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify init container %s: %s", image.Name, err.Error())
+				response.ErrorMessage = fmt.Sprintf("failed to verify init container %s: %s", image.Name, err.Error())
 				break
 			}
 			response.Results = append(response.Results, *result)
@@ -167,7 +167,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
-				response.Message = fmt.Sprintf("failed to verify ephemeral container: %s: %s", image.Name, err.Error())
+				response.ErrorMessage = fmt.Sprintf("failed to verify ephemeral container: %s: %s", image.Name, err.Error())
 				break
 			}
 			response.Results = append(response.Results, *result)

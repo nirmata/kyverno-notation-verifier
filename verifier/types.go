@@ -48,9 +48,11 @@ type ResponseData struct {
 	// Verified is true when all the images are verified.
 	Verified bool `json:"verified"`
 
-	// Message contains an optional custom message to send as a response.
-	Message string `json:"message,omitempty"`
+	// ErrorMessage contains the error recieved when verification fails
+	// ErrorMessage is empty when verification succeeds
+	ErrorMessage string `json:"message,omitempty"`
 
 	// Results contains the list of containers in JSONPatch format
+	// Results is empty when verification fails
 	Results []Result `json:"results"`
 }

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -255,7 +255,7 @@ func (v *verifier) verifyConditions(ctx context.Context, repoRef name.Reference,
 		return fmt.Errorf("failed to add Statement to the context: %w", err)
 	}
 
-	val, msg, err := variables.EvaluateAnyAllConditions(logr.Discard(), v.engineContext, conditions)
+	val, msg, err := variables.EvaluateAnyAllConditions(zapr.NewLogger(v.logger.Desugar()), v.engineContext, conditions)
 	if err != nil {
 		return err
 	}

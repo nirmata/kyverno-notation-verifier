@@ -229,11 +229,11 @@ func (v *verifier) verifyAttestation(ctx context.Context, image string, attestat
 
 		_, err := v.verifyReferences(ctx, referrerRef)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get referrer of artifact type %s", referrer.ArtifactType)
+			return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
 		}
 
 		if err := v.verifyConditions(ctx, ref, referrer, conditions, remoteOpts...); err != nil {
-			return errors.Wrapf(err, "failed to extract payload")
+			return errors.Wrapf(err, "failed to verify conditions %s %s", ref.String(), referrer.Digest.String())
 		}
 	}
 	return nil
@@ -259,6 +259,7 @@ func (v *verifier) verifyConditions(ctx context.Context, repoRef name.Reference,
 	if !val {
 		return errors.Errorf("failed to evaluate conditions: %s", msg)
 	}
+	v.logger.Infof("successfully verified condition for image %s", repoRef.String())
 	return nil
 }
 
@@ -308,6 +309,7 @@ func (v *verifier) extractPayload(ctx context.Context, repoRef name.Reference, d
 	if err := json.Unmarshal(predicateBytes.Bytes(), &predicate); err != nil {
 		return nil, err
 	}
+	v.logger.Infof("successfully extracted payload for image %s", repoRef.String())
 	return predicate, nil
 }
 
@@ -369,6 +371,8 @@ func (v *verifier) verifyReferences(ctx context.Context, image string) (string, 
 		err := multierr.Combine(errs...)
 		return "", err
 	}
+
+	v.logger.Infof("successfully verified image %s digest %s", image, desc.Digest.String())
 
 	return desc.Digest.String(), nil
 }

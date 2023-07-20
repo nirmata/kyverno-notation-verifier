@@ -15,25 +15,25 @@ func validateRequestData(req *RequestData) error {
 
 		for _, attType := range att.Type {
 			if attType.Name == "" {
-				return errors.Errorf("attestation name cannot be empty %+v: %+v", attType, att)
+				return errors.Errorf("attestation name cannot be empty")
 			}
 			for _, any := range attType.Conditions.AnyConditions {
 				if any.RawKey == nil {
-					return errors.Errorf("condtion key cannot be empty %+v: %+v: %+v", any, attType, att)
+					return errors.Errorf("condtion key cannot be empty")
 				}
 
 				if any.RawValue == nil {
-					return errors.Errorf("condtion value cannot be empty %+v: %+v: %+v", any, attType, att)
+					return errors.Errorf("condtion value cannot be empty")
 				}
 			}
 
 			for _, all := range attType.Conditions.AllConditions {
 				if all.RawKey == nil {
-					return errors.Errorf("condtion key cannot be empty %+v: %+v: %+v", all, attType, att)
+					return errors.Errorf("condtion key cannot be empty")
 				}
 
 				if all.RawValue == nil {
-					return errors.Errorf("condtion value cannot be empty %+v: %+v: %+v", all, attType, att)
+					return errors.Errorf("condtion value cannot be empty")
 				}
 			}
 		}

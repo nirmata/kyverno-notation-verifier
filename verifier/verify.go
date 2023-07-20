@@ -140,8 +140,10 @@ func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte
 				verificationFailed = true
 				response.Verified = false
 				response.ErrorMessage = fmt.Sprintf("failed to verify container %s: %s", image.Name, err.Error())
+				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				break
 			}
+			v.logger.Infof("Verified image %s: %s", image.String(), result.Image)
 			response.Results = append(response.Results, *result)
 		}
 		v.logger.Infof("verified %d containers ", images.Containers)
@@ -154,8 +156,10 @@ func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte
 				verificationFailed = true
 				response.Verified = false
 				response.ErrorMessage = fmt.Sprintf("failed to verify init container %s: %s", image.Name, err.Error())
+				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				break
 			}
+			v.logger.Infof("Verified image %s: %s", image.String(), result.Image)
 			response.Results = append(response.Results, *result)
 		}
 		v.logger.Infof("verified %d initContainers", images.InitContainers)
@@ -168,8 +172,10 @@ func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte
 				verificationFailed = true
 				response.Verified = false
 				response.ErrorMessage = fmt.Sprintf("failed to verify ephemeral container: %s: %s", image.Name, err.Error())
+				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				break
 			}
+			v.logger.Infof("Verified image %s: %s", image.String(), result.Image)
 			response.Results = append(response.Results, *result)
 		}
 		v.logger.Infof("verified %d ephemeralContainers", images.EphemeralContainers)

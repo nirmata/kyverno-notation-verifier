@@ -145,6 +145,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	for _, image := range requestData.Images.Containers {
 		result, err := v.verifyImageInfo(ctx, image)
 		if err != nil {
+			v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 			return response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
 		}
 		response.AddImage(result)
@@ -154,6 +155,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	for _, image := range requestData.Images.InitContainers {
 		result, err := v.verifyImageInfo(ctx, image)
 		if err != nil {
+			v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
 			return response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
 		}
 		response.AddImage(result)
@@ -163,6 +165,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	for _, image := range requestData.Images.EphemeralContainers {
 		result, err := v.verifyImageInfo(ctx, image)
 		if err != nil {
+			v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
 			return response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
 		}
 		response.AddImage(result)

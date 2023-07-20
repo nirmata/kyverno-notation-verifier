@@ -63,7 +63,7 @@ func (r *Response) AddAttestations(img string, att AttestationType) error {
 
 func (r *Response) VerificationFailed(msg string) ([]byte, error) {
 	r.ResponseData.Verified = false
-	r.ResponseData.Message = msg
+	r.ResponseData.ErrorMessage = msg
 	r.ResponseData.Images = nil
 
 	data, err := json.MarshalIndent(r.ResponseData, "  ", "  ")
@@ -74,7 +74,7 @@ func (r *Response) VerificationFailed(msg string) ([]byte, error) {
 }
 
 func (r *Response) VerificationSucceeded(msg string) ([]byte, error) {
-	r.ResponseData.Message = msg
+	r.ResponseData.ErrorMessage = msg
 
 	data, err := json.MarshalIndent(r.ResponseData, "  ", "  ")
 	if err != nil {

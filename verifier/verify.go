@@ -119,6 +119,16 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	return v, nil
 }
 
+func (v *verifier) UpdateNotationVerfier() error {
+	var err error
+	v.notationVerifier, err = notationverifier.NewFromConfig()
+	if err != nil {
+		v.logger.Errorf("notation verifier creation failed, not updating verifier: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (v *verifier) Stop() {
 	v.logger.Sync()
 	v.informerFactory.Shutdown()

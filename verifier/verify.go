@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -40,6 +41,7 @@ type verifier struct {
 	maxSignatureAttempts       int
 	debug                      bool
 	stopCh                     chan struct{}
+	lock                       sync.Mutex
 }
 
 type verifierOptsFunc func(*verifier)
@@ -120,6 +122,8 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 }
 
 func (v *verifier) UpdateNotationVerfier() error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	var err error
 	v.notationVerifier, err = notationverifier.NewFromConfig()
 	if err != nil {
@@ -136,6 +140,8 @@ func (v *verifier) Stop() {
 }
 
 func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte, error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	verificationFailed := false
 
 	response := ResponseData{

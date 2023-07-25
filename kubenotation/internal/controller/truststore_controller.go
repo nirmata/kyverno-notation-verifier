@@ -36,6 +36,7 @@ import (
 type TrustStoreReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	TpChan *chan bool
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=truststores,verbs=get;list;watch;create;update;patch;delete
@@ -68,12 +69,12 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			}
 		}
 
-		if err := writeTrustStore(trustStore, log); err != nil {
+		if err := writeTrustStore(trustStore, log, r.TpChan); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to update trust store")
 		}
 
 	} else {
-		if err := deleteTrustStore(trustStore, log); err != nil {
+		if err := deleteTrustStore(trustStore, log, r.TpChan); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust store")
 		}
 
@@ -86,7 +87,7 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger) error {
+func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, tpChan *chan bool) error {
 	tsPath := filepath.Join(notationPath, trustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.MkdirAll(tsPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
@@ -95,16 +96,22 @@ func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger) error {
 	certFile := filepath.Join(tsPath, "certificates.crt")
 	os.WriteFile(certFile, []byte(store.Spec.CABundle), 0600)
 	log.Info("updated trust store", "path", certFile)
+
+	*tpChan <- true
+
 	return nil
 }
 
-func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger) error {
+func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, tpChan *chan bool) error {
 	tsPath := filepath.Join(notationPath, trustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.RemoveAll(tsPath); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", tsPath)
 	}
 
 	log.Info("deleted trust store", "path", tsPath)
+
+	*tpChan <- true
+
 	return nil
 }
 

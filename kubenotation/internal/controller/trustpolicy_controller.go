@@ -75,7 +75,7 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 
 	} else { // handle delete
-		if err := deleteTrustPolicy(trustPolicy, log); err != nil {
+		if err := deleteTrustPolicy(trustPolicy, log, r.TpChan); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust policy")
 		}
 
@@ -108,13 +108,16 @@ func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, tpCh
 	return nil
 }
 
-func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger) error {
+func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, tpChan *chan bool) error {
 	fileName := filepath.Join(notationPath, "trustpolicy.json")
 	if err := os.RemoveAll(fileName); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", fileName)
 	}
 
 	log.Info("deleted trust policy", "path", fileName)
+
+	*tpChan <- true
+
 	return nil
 }
 

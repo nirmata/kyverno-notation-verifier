@@ -93,6 +93,7 @@ func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeade
 	if err = (&controller.TrustStoreReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		TpChan: &tpChan,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "TrustStore")
 		return nil, errors.Wrapf(err, "unable to create controller TrustStore")

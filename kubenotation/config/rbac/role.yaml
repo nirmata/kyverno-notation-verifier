@@ -1,0 +1,59 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - trustpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - trustpolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - trustpolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - truststores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - truststores/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - truststores/status
+  verbs:
+  - get
+  - patch
+  - update

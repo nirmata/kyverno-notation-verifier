@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- notation_v1alpha1_trustpolicy.yaml
+- notation_v1alpha1_truststore.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples

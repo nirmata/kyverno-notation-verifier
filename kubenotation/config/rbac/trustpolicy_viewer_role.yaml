@@ -1,0 +1,27 @@
+# permissions for end users to view trustpolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: trustpolicy-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kube-notation
+    app.kubernetes.io/part-of: kube-notation
+    app.kubernetes.io/managed-by: kustomize
+  name: trustpolicy-viewer-role
+rules:
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - trustpolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - trustpolicies/status
+  verbs:
+  - get

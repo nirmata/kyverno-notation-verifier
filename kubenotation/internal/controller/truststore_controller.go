@@ -36,7 +36,7 @@ import (
 type TrustStoreReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	TpChan *chan bool
+	TpChan *chan struct{}
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=truststores,verbs=get;list;watch;create;update;patch;delete
@@ -87,7 +87,7 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, tpChan *chan bool) error {
+func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, tpChan *chan struct{}) error {
 	tsPath := filepath.Join(notationPath, trustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.MkdirAll(tsPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
@@ -97,12 +97,12 @@ func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, tpChan 
 	os.WriteFile(certFile, []byte(store.Spec.CABundle), 0600)
 	log.Info("updated trust store", "path", certFile)
 
-	*tpChan <- true
+	*tpChan <- struct{}{}
 
 	return nil
 }
 
-func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, tpChan *chan bool) error {
+func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, tpChan *chan struct{}) error {
 	tsPath := filepath.Join(notationPath, trustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.RemoveAll(tsPath); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", tsPath)
@@ -110,7 +110,7 @@ func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, tpChan
 
 	log.Info("deleted trust store", "path", tsPath)
 
-	*tpChan <- true
+	*tpChan <- struct{}{}
 
 	return nil
 }

@@ -50,7 +50,7 @@ func init() {
 
 type SetupResult struct {
 	mgr                 *manager.Manager
-	trustPolicyModified *chan bool
+	trustPolicyModified *chan struct{}
 }
 
 func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeaderElection bool) (*SetupResult, error) {
@@ -81,7 +81,7 @@ func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeade
 		return nil, errors.Wrapf(err, "unable to start manager")
 	}
 
-	tpChan := make(chan bool, 1)
+	tpChan := make(chan struct{}, 1)
 	if err = (&controller.TrustPolicyReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),

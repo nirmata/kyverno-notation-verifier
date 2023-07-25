@@ -37,7 +37,7 @@ import (
 type TrustPolicyReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	TpChan *chan bool
+	TpChan *chan struct{}
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=trustpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -88,7 +88,7 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, tpChan *chan bool) error {
+func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, tpChan *chan struct{}) error {
 	if err := os.MkdirAll(notationPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
 	}
@@ -103,12 +103,12 @@ func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, tpCh
 
 	log.Info("updated trust policy", "path", fileName)
 
-	*tpChan <- true
+	*tpChan <- struct{}{}
 
 	return nil
 }
 
-func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, tpChan *chan bool) error {
+func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, tpChan *chan struct{}) error {
 	fileName := filepath.Join(notationPath, "trustpolicy.json")
 	if err := os.RemoveAll(fileName); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", fileName)
@@ -116,7 +116,7 @@ func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, tpC
 
 	log.Info("deleted trust policy", "path", fileName)
 
-	*tpChan <- true
+	*tpChan <- struct{}{}
 
 	return nil
 }

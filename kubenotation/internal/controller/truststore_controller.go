@@ -29,6 +29,7 @@ import (
 
 	"github.com/go-logr/logr"
 	notationv1alpha1 "github.com/nirmata/kyverno-notation-verifier/kubenotation/api/v1alpha1"
+	"github.com/nirmata/kyverno-notation-verifier/kubenotation/utils"
 	"github.com/pkg/errors"
 )
 
@@ -62,8 +63,8 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	if trustStore.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(&trustStore, finalizerName) {
-			controllerutil.AddFinalizer(&trustStore, finalizerName)
+		if !controllerutil.ContainsFinalizer(&trustStore, utils.FinalizerName) {
+			controllerutil.AddFinalizer(&trustStore, utils.FinalizerName)
 			if err := r.Update(ctx, &trustStore); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -78,7 +79,7 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust store")
 		}
 
-		controllerutil.RemoveFinalizer(&trustStore, finalizerName)
+		controllerutil.RemoveFinalizer(&trustStore, utils.FinalizerName)
 		if err := r.Update(ctx, &trustStore); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -88,7 +89,7 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 }
 
 func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdChangeChan *chan struct{}) error {
-	tsPath := filepath.Join(notationPath, trustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
+	tsPath := filepath.Join(utils.NotationPath, utils.TrustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.MkdirAll(tsPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
 	}
@@ -108,7 +109,7 @@ func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdChan
 }
 
 func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdChangeChan *chan struct{}) error {
-	tsPath := filepath.Join(notationPath, trustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
+	tsPath := filepath.Join(utils.NotationPath, utils.TrustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.RemoveAll(tsPath); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", tsPath)
 	}

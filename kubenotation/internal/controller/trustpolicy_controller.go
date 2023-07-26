@@ -36,8 +36,8 @@ import (
 // TrustPolicyReconciler reconciles a TrustPolicy object
 type TrustPolicyReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	CRDChanged *chan struct{}
+	Scheme            *runtime.Scheme
+	CRDChangeInformer *chan struct{}
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=trustpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -70,12 +70,12 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			}
 		}
 
-		if err := writeTrustPolicy(trustPolicy, log, r.CRDChanged); err != nil {
+		if err := writeTrustPolicy(trustPolicy, log, r.CRDChangeInformer); err != nil {
 			return ctrl.Result{}, err
 		}
 
 	} else { // handle delete
-		if err := deleteTrustPolicy(trustPolicy, log, r.CRDChanged); err != nil {
+		if err := deleteTrustPolicy(trustPolicy, log, r.CRDChangeInformer); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust policy")
 		}
 

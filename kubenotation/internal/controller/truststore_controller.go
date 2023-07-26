@@ -35,8 +35,8 @@ import (
 // TrustStoreReconciler reconciles a TrustStore object
 type TrustStoreReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	CRDChanged *chan struct{}
+	Scheme            *runtime.Scheme
+	CRDChangeInformer *chan struct{}
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=truststores,verbs=get;list;watch;create;update;patch;delete
@@ -69,12 +69,12 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			}
 		}
 
-		if err := writeTrustStore(trustStore, log, r.CRDChanged); err != nil {
+		if err := writeTrustStore(trustStore, log, r.CRDChangeInformer); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to update trust store")
 		}
 
 	} else {
-		if err := deleteTrustStore(trustStore, log, r.CRDChanged); err != nil {
+		if err := deleteTrustStore(trustStore, log, r.CRDChangeInformer); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust store")
 		}
 

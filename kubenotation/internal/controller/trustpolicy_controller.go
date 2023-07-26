@@ -36,8 +36,8 @@ import (
 // TrustPolicyReconciler reconciles a TrustPolicy object
 type TrustPolicyReconciler struct {
 	client.Client
-	Scheme         *runtime.Scheme
-	UpdateVerifier *chan struct{}
+	Scheme     *runtime.Scheme
+	CRDChanged *chan struct{}
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=trustpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -70,12 +70,12 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			}
 		}
 
-		if err := writeTrustPolicy(trustPolicy, log, r.UpdateVerifier); err != nil {
+		if err := writeTrustPolicy(trustPolicy, log, r.CRDChanged); err != nil {
 			return ctrl.Result{}, err
 		}
 
 	} else { // handle delete
-		if err := deleteTrustPolicy(trustPolicy, log, r.UpdateVerifier); err != nil {
+		if err := deleteTrustPolicy(trustPolicy, log, r.CRDChanged); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust policy")
 		}
 
@@ -88,7 +88,7 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, updateChan *chan struct{}) error {
+func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdChangeChan *chan struct{}) error {
 	if err := os.MkdirAll(notationPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
 	}
@@ -104,16 +104,16 @@ func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, upda
 	log.Info("updated trust policy", "path", fileName)
 
 	select {
-	case *updateChan <- struct{}{}:
-		log.Info("sent update request to notation verifier")
+	case *crdChangeChan <- struct{}{}:
+		log.Info("CRDs updated: sent update request")
 	default:
-		log.Info("notation verifier update request already present")
+		log.Info("CRDs updated: update request already present")
 	}
 
 	return nil
 }
 
-func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, updateChan *chan struct{}) error {
+func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdChangeChan *chan struct{}) error {
 	fileName := filepath.Join(notationPath, "trustpolicy.json")
 	if err := os.RemoveAll(fileName); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", fileName)
@@ -122,10 +122,10 @@ func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, upd
 	log.Info("deleted trust policy", "path", fileName)
 
 	select {
-	case *updateChan <- struct{}{}:
-		log.Info("sent update request to notation verifier")
+	case *crdChangeChan <- struct{}{}:
+		log.Info("CRDs updated: sent update request")
 	default:
-		log.Info("notation verifier update request already present")
+		log.Info("CRDs updated: update request already present")
 	}
 
 	return nil

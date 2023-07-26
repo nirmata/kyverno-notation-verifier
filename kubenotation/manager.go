@@ -49,8 +49,8 @@ func init() {
 }
 
 type SetupResult struct {
-	Manager        *manager.Manager
-	UpdateVerifier *chan struct{}
+	Manager    *manager.Manager
+	CRDChanged *chan struct{}
 }
 
 func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeaderElection bool) (*SetupResult, error) {
@@ -83,17 +83,17 @@ func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeade
 
 	tpChan := make(chan struct{}, 1)
 	if err = (&controller.TrustPolicyReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		UpdateVerifier: &tpChan,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		CRDChanged: &tpChan,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "TrustPolicy")
 		return nil, errors.Wrapf(err, "unable to create controller TrustPolicy")
 	}
 	if err = (&controller.TrustStoreReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		UpdateVerifier: &tpChan,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		CRDChanged: &tpChan,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "TrustStore")
 		return nil, errors.Wrapf(err, "unable to create controller TrustStore")
@@ -116,7 +116,7 @@ func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeade
 	// }
 
 	return &SetupResult{
-		Manager:        &mgr,
-		UpdateVerifier: &tpChan,
+		Manager:    &mgr,
+		CRDChanged: &tpChan,
 	}, nil
 }

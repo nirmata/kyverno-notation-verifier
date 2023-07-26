@@ -35,8 +35,8 @@ import (
 // TrustStoreReconciler reconciles a TrustStore object
 type TrustStoreReconciler struct {
 	client.Client
-	Scheme         *runtime.Scheme
-	UpdateVerifier *chan struct{}
+	Scheme     *runtime.Scheme
+	CRDChanged *chan struct{}
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=truststores,verbs=get;list;watch;create;update;patch;delete
@@ -69,12 +69,12 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			}
 		}
 
-		if err := writeTrustStore(trustStore, log, r.UpdateVerifier); err != nil {
+		if err := writeTrustStore(trustStore, log, r.CRDChanged); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to update trust store")
 		}
 
 	} else {
-		if err := deleteTrustStore(trustStore, log, r.UpdateVerifier); err != nil {
+		if err := deleteTrustStore(trustStore, log, r.CRDChanged); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust store")
 		}
 
@@ -87,7 +87,7 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, updateChan *chan struct{}) error {
+func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdChangeChan *chan struct{}) error {
 	tsPath := filepath.Join(notationPath, trustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.MkdirAll(tsPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
@@ -98,16 +98,16 @@ func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, updateC
 	log.Info("updated trust store", "path", certFile)
 
 	select {
-	case *updateChan <- struct{}{}:
-		log.Info("sent update request to notation verifier")
+	case *crdChangeChan <- struct{}{}:
+		log.Info("CRDs updated: sent update request")
 	default:
-		log.Info("notation verifier update request already present")
+		log.Info("CRDs updated: update request already present")
 	}
 
 	return nil
 }
 
-func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, updateChan *chan struct{}) error {
+func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdChangeChan *chan struct{}) error {
 	tsPath := filepath.Join(notationPath, trustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.RemoveAll(tsPath); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", tsPath)
@@ -116,10 +116,10 @@ func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, update
 	log.Info("deleted trust store", "path", tsPath)
 
 	select {
-	case *updateChan <- struct{}{}:
-		log.Info("sent update request to notation verifier")
+	case *crdChangeChan <- struct{}{}:
+		log.Info("CRDs updated: sent update request")
 	default:
-		log.Info("notation verifier update request already present")
+		log.Info("CRDs updated: update request already present")
 	}
 
 	return nil

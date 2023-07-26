@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+
+	"github.com/nirmata/kyverno-notation-verifier/types"
 )
 
 func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
@@ -14,7 +16,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestData RequestData
+	var requestData types.RequestData
 	//err := json.NewDecoder(r.Body).Decode(&requestData)
 	raw, _ := io.ReadAll(r.Body)
 	err := json.Unmarshal(raw, &requestData)

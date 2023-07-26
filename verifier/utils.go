@@ -1,8 +1,11 @@
 package verifier
 
-import "github.com/pkg/errors"
+import (
+	"github.com/nirmata/kyverno-notation-verifier/types"
+	"github.com/pkg/errors"
+)
 
-func validateRequestData(req *RequestData) error {
+func validateRequestData(req *types.RequestData) error {
 	if len(req.Images.Containers) == 0 &&
 		len(req.Images.InitContainers) == 0 &&
 		len(req.Images.EphemeralContainers) == 0 {

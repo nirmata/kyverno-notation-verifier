@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/nirmata/kyverno-notation-verifier/types"
 	"gotest.tools/assert"
 )
 
@@ -18,7 +19,7 @@ var (
 )
 
 func Test_RequestValidation(t *testing.T) {
-	var requestData RequestData
+	var requestData types.RequestData
 	err := json.Unmarshal([]byte(noImagesRequest), &requestData)
 	assert.NilError(t, err)
 

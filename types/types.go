@@ -1,4 +1,4 @@
-package verifier
+package types
 
 import (
 	imageutils "github.com/kyverno/kyverno/pkg/utils/image"

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/notaryproject/notation-go"
 	notationlog "github.com/notaryproject/notation-go/log"
 	notationregistry "github.com/notaryproject/notation-go/registry"
@@ -140,14 +141,14 @@ func (v *verifier) Stop() {
 	v.stopCh <- struct{}{}
 }
 
-func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte, error) {
+func (v *verifier) verifyImages(ctx context.Context, images *types.ImageInfos) ([]byte, error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	verificationFailed := false
 
-	response := ResponseData{
+	response := types.ResponseData{
 		Verified: true,
-		Results:  make([]Result, 0),
+		Results:  make([]types.Result, 0),
 	}
 
 	if !verificationFailed {
@@ -210,7 +211,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte
 	return data, nil
 }
 
-func (v *verifier) verifyImageInfo(ctx context.Context, image *ImageInfo) (*Result, error) {
+func (v *verifier) verifyImageInfo(ctx context.Context, image *types.ImageInfo) (*types.Result, error) {
 	v.logger.Infof("verifying image infos %+v", image)
 	digest, err := v.verifyImage(ctx, image.String())
 	if err != nil {
@@ -220,7 +221,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, image *ImageInfo) (*Resu
 
 	image.Digest = digest
 
-	return &Result{
+	return &types.Result{
 		Name:  image.Name,
 		Path:  image.Pointer,
 		Image: image.String(),

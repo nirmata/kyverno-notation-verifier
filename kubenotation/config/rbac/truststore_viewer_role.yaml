@@ -1,0 +1,27 @@
+# permissions for end users to view truststores.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: truststore-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kube-notation
+    app.kubernetes.io/part-of: kube-notation
+    app.kubernetes.io/managed-by: kustomize
+  name: truststore-viewer-role
+rules:
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - truststores
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - notation.nirmata.io
+  resources:
+  - truststores/status
+  verbs:
+  - get

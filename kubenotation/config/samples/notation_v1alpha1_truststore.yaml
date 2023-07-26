@@ -1,0 +1,40 @@
+apiVersion: notation.nirmata.io/v1alpha1
+kind: TrustStore
+metadata:
+  labels:
+    app.kubernetes.io/name: truststore
+    app.kubernetes.io/instance: truststore-sample
+    app.kubernetes.io/part-of: kube-notation
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kube-notation
+  name: truststore-sample
+spec:
+  trustStoreName: test
+  type: signingAuthority
+  caBundle: |-
+    -----BEGIN CERTIFICATE-----
+    MIICgDCCAiegAwIBAgIQKixGVztv2rahcWQOyJ1J2zAKBggqhkjOPQQDAjAbMRkw
+    FwYDVQQDExBteS1zZWxmc2lnbmVkLWNhMB4XDTIzMDMwMTA3NDAyNVoXDTIzMDUz
+    MDA3NDAyNVowKDERMA8GA1UEChMIamV0c3RhY2sxEzARBgNVBAMTCnNhbXBsZS5j
+    b20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDTDQtVjZy9exkjBNuG
+    y0otmwqhjnxD0Ho8U6OeYqTMKuFzWEyV0n2Xif6zPQRl5Wq77kUA+KnvxvS54sJJ
+    UMJg5m3eG0Fm6/0Ivw32c8ulN9S4GTawJUFKmplZ0741fC018w5D4IkJgoT8IzYK
+    QBgkZ8cTb/Romd+bZMNsUngEhQqXNini/Dv6J6n2bVWS25KvIvFRi2MUupCcfrC/
+    ZRjAY0se60e/h7zztKjKe0p9gszJDjMQH2a7KcDt7aTqdkb1i77zTGREAOTgYSlV
+    g1QU5sXroGnBgcRhJTl2IBWz7/CPtrjdoxyCtnhlarRxlBkv8C5vgxO3FxQ01Ek4
+    l/9BAgMBAAGjdTBzMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNV
+    HRMBAf8EAjAAMB8GA1UdIwQYMBaAFH+ON/4aoOJZNMVjfDG0lUqUQgflMCMGA1Ud
+    EQQcMBqCGHNhbXBsZS5reXZlcm5vLWV4dGVuc2lvbjAKBggqhkjOPQQDAgNHADBE
+    AiA5RmUqSRHKE6GGUyiX97LCRWIs/UeoFna6zsqbAoqBMgIgQL2OJwAgZDsG38Z2
+    RS5ofttJzBGF2gw6XXpZKcPHhwg=
+    -----END CERTIFICATE-----
+    -----BEGIN CERTIFICATE-----
+    MIIBdTCCARygAwIBAgIQB4C9BjZfmH20/rzn0SM/QjAKBggqhkjOPQQDAjAbMRkw
+    FwYDVQQDExBteS1zZWxmc2lnbmVkLWNhMB4XDTIzMDMwMTA3NDAyMFoXDTIzMDUz
+    MDA3NDAyMFowGzEZMBcGA1UEAxMQbXktc2VsZnNpZ25lZC1jYTBZMBMGByqGSM49
+    AgEGCCqGSM49AwEHA0IABHKBs63omBhCxwy+VjNkPt+BJtsAju9IkV1DjQ1E/1NY
+    OmlbhTK162V+BtHE+T/+i3mF1VcNKDbAHvh/RsFz7KOjQjBAMA4GA1UdDwEB/wQE
+    AwICpDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBR/jjf+GqDiWTTFY3wxtJVK
+    lEIH5TAKBggqhkjOPQQDAgNHADBEAiBneLGL7WPl3FXPxJWspSMaCB+wyt3BK21D
+    eQgLJqburwIgFSLm7Tp5azYkfwQM4xBOOdTlW1RFPph7ywQwy8P81cM=
+    -----END CERTIFICATE-----

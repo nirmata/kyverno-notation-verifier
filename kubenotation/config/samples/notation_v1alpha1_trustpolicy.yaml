@@ -1,0 +1,23 @@
+apiVersion: notation.nirmata.io/v1alpha1
+kind: TrustPolicy
+metadata:
+  labels:
+    app.kubernetes.io/name: trustpolicy
+    app.kubernetes.io/instance: trustpolicy-sample
+    app.kubernetes.io/part-of: kube-notation
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kube-notation
+  name: trustpolicy-sample
+spec:
+  version: '1.0'
+  trustPolicies:
+  - name: aws-signer-tp
+    registryScopes:
+    - "*"
+    signatureVerification:
+      level: strict
+      override: {}
+    trustStores:
+    - signingAuthority:aws-signer-ts
+    trustedIdentities:
+    - "arn:aws:signer:<AWS_REGION>:<AWS_ACCOUNT_ID>:/signing-profiles/<PROFILE_NAME>"

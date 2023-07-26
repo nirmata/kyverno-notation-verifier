@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -40,6 +41,7 @@ type verifier struct {
 	maxSignatureAttempts       int
 	debug                      bool
 	stopCh                     chan struct{}
+	lock                       sync.Mutex
 }
 
 type verifierOptsFunc func(*verifier)
@@ -97,9 +99,10 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 
 	v.notationVerifier, err = notationverifier.NewFromConfig()
 	if err != nil {
-		v.logger.Errorf("initialization error: %v", err)
+		v.logger.Errorf("failed to create notation verifier, error: %v", err)
 		return nil, err
 	}
+	v.logger.Info("notation verifier created")
 
 	namespace := os.Getenv("POD_NAMESPACE")
 	v.informerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(v.kubeClient, 15*time.Minute, kubeinformers.WithNamespace(namespace))
@@ -119,6 +122,18 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	return v, nil
 }
 
+func (v *verifier) UpdateNotationVerfier() error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	var err error
+	v.notationVerifier, err = notationverifier.NewFromConfig()
+	if err != nil {
+		v.logger.Errorf("notation verifier creation failed, not updating verifier: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (v *verifier) Stop() {
 	v.logger.Sync()
 	v.informerFactory.Shutdown()
@@ -126,6 +141,8 @@ func (v *verifier) Stop() {
 }
 
 func (v *verifier) verifyImages(ctx context.Context, images *ImageInfos) ([]byte, error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	verificationFailed := false
 
 	response := ResponseData{

@@ -99,9 +99,10 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 
 	v.notationVerifier, err = notationverifier.NewFromConfig()
 	if err != nil {
-		v.logger.Errorf("initialization error: %v", err)
+		v.logger.Errorf("failed to create notation verifier, error: %v", err)
 		return nil, err
 	}
+	v.logger.Info("notation verifier created")
 
 	namespace := os.Getenv("POD_NAMESPACE")
 	v.informerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(v.kubeClient, 15*time.Minute, kubeinformers.WithNamespace(namespace))

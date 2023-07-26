@@ -26,7 +26,7 @@ func NewVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) Verifier {
 	}
 
 	if err := backoff.Retry(initVerifier, backoff.NewExponentialBackOff()); err != nil {
-		logger.Fatalf("initialization failed, retrying, error: %v", err)
+		logger.Fatalf("initialization failed, error: %v", err)
 	}
 
 	return verifier

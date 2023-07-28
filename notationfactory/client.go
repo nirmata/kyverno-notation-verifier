@@ -39,20 +39,24 @@ func (f *notationverifierfactory) clear() {
 	defer f.lock.Unlock()
 
 	f.verifiers = make(map[string]*notation.Verifier)
+	f.log.Info("Notation verifier factory cleared")
 }
 
 func (f *notationverifierfactory) RefreshVerifiers() error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
+	f.log.Info("Refreshing notation verifiers")
 	verifiers := make(map[string]*notation.Verifier)
 
 	entries, err := os.ReadDir(utils.NotationPath)
 	if err != nil {
+		f.log.Errorf("failed to read notation directory %v", err)
 		return err
 	}
 
 	for _, e := range entries {
+		f.log.Infof("Reading file in notation directory, %s", e.Name())
 		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
 			continue
 		}
@@ -61,9 +65,12 @@ func (f *notationverifierfactory) RefreshVerifiers() error {
 		trustPolicy, err := f.loadTrustPolicy(fileName)
 
 		if err != nil {
+			f.log.Errorf("failed to load trust policy loaded from file %s", fileName)
 			return err
 		}
+		f.log.Infof("Trust policy loaded from file %s", fileName)
 		x509TrustStore := truststore.NewX509TrustStore(dir.ConfigFS())
+		f.log.Infof("Trust store loaded")
 
 		verifier, err := verifier.New(trustPolicy, x509TrustStore, plugin.NewCLIManager(dir.PluginFS()))
 		if err != nil {
@@ -72,10 +79,12 @@ func (f *notationverifierfactory) RefreshVerifiers() error {
 		trustpolicy := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 
 		verifiers[trustpolicy] = &verifier
+		f.log.Infof("Added verifier to the list for trust policy %s", trustPolicy)
 	}
 
 	f.clear()
 	f.verifiers = verifiers
+	f.log.Infof("Successfully updated verifiers")
 	return nil
 }
 
@@ -86,6 +95,9 @@ func (f *notationverifierfactory) GetVerifier(requestData *types.RequestData) (*
 	trustPolicy := requestData.TrustPolicy
 	if len(trustPolicy) == 0 {
 		trustPolicy = os.Getenv(types.ENV_DEFAULT_TRUST_STORE)
+		f.log.Infof("Using default turst policy from env")
+	} else {
+		f.log.Infof("Using trust policy provided in the request")
 	}
 
 	if len(trustPolicy) == 0 {
@@ -96,6 +108,8 @@ func (f *notationverifierfactory) GetVerifier(requestData *types.RequestData) (*
 	if !found {
 		return nil, errors.Errorf("no trust store found for trust store %s", trustPolicy)
 	}
+	f.log.Infof("Found notation verifer for trust policy %s", trustPolicy)
+
 	return verifier, nil
 }
 
@@ -103,7 +117,7 @@ func (f *notationverifierfactory) loadTrustPolicy(path string) (*trustpolicy.Doc
 	fileInfo, err := os.Lstat(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("trust policy is not present")
+			return nil, fmt.Errorf("trust policy is not present %s", path)
 		}
 		return nil, err
 	}

@@ -63,12 +63,12 @@ func (f *notationverifierfactory) RefreshVerifiers() error {
 
 		fileName := filepath.Join(utils.NotationPath, e.Name())
 		trustPolicy, err := f.loadTrustPolicy(fileName)
-
 		if err != nil {
 			f.log.Errorf("failed to load trust policy loaded from file %s", fileName)
 			return err
 		}
 		f.log.Infof("Trust policy loaded from file %s", fileName)
+
 		x509TrustStore := truststore.NewX509TrustStore(dir.ConfigFS())
 		f.log.Infof("Trust store loaded")
 
@@ -124,13 +124,13 @@ func (f *notationverifierfactory) loadTrustPolicy(path string) (*trustpolicy.Doc
 
 	mode := fileInfo.Mode()
 	if mode.IsDir() || mode&fs.ModeSymlink != 0 {
-		return nil, fmt.Errorf("trust policy is not a regular file (symlinks are not supported)")
+		return nil, fmt.Errorf("trust policy is not a regular file (symlinks are not supported) path: %s", path)
 	}
 
 	jsonFile, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, os.ErrPermission) {
-			return nil, fmt.Errorf("unable to read trust policy due to file permissions, please verify the permissions of %s", filepath.Join(dir.UserConfigDir, dir.PathTrustPolicy))
+			return nil, fmt.Errorf("unable to read trust policy due to file permissions, please verify the permissions of %s", path)
 		}
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (f *notationverifierfactory) loadTrustPolicy(path string) (*trustpolicy.Doc
 	policyDocument := &trustpolicy.Document{}
 	err = json.NewDecoder(jsonFile).Decode(policyDocument)
 	if err != nil {
-		return nil, fmt.Errorf("malformed trust policy")
+		return nil, fmt.Errorf("malformed trust policy path: %s", path)
 	}
 	return policyDocument, nil
 }

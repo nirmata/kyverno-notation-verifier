@@ -95,7 +95,7 @@ func (f *notationverifierfactory) GetVerifier(requestData *types.RequestData) (*
 	trustPolicy := requestData.TrustPolicy
 	if len(trustPolicy) == 0 {
 		trustPolicy = os.Getenv(types.ENV_DEFAULT_TRUST_STORE)
-		f.log.Infof("Using default turst policy from env")
+		f.log.Infof("Using default trust policy from env")
 	} else {
 		f.log.Infof("Using trust policy provided in the request")
 	}

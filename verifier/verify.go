@@ -123,8 +123,7 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 }
 
 func (v *verifier) UpdateNotationVerfier() error {
-	var err error
-	err = v.notationVerifierFactory.RefreshVerifiers()
+	err := v.notationVerifierFactory.RefreshVerifiers()
 	if err != nil {
 		v.logger.Errorf("notation verifier creation failed, not updating verifiers: %v", err)
 		return err
@@ -148,7 +147,6 @@ func (v *verifier) verifyImages(ctx context.Context, requestData *types.RequestD
 	}
 
 	notationVerifier, err := v.notationVerifierFactory.GetVerifier(requestData)
-
 	if err != nil {
 		verificationFailed = true
 		response.Verified = false

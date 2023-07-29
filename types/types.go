@@ -43,7 +43,7 @@ type Result struct {
 type RequestData struct {
 	Images ImageInfos `json:"images"`
 
-	TrustPolicy string `json:"trustStore"`
+	TrustPolicy string `json:"trustPolicy"`
 }
 
 // Data format of response body for HandleCheckImages

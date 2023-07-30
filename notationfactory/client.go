@@ -35,9 +35,6 @@ func NewNotationVerifierFactory(logger *zap.SugaredLogger) NotationVeriferFactor
 }
 
 func (f *notationverifierfactory) clear() {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
 	f.verifiers = make(map[string]*notation.Verifier)
 	f.log.Info("Notation verifier factory cleared")
 }

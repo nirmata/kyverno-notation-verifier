@@ -5,9 +5,9 @@ import (
 )
 
 var (
-	CertFile                = "/certs/tls.crt"
-	KeyFile                 = "/certs/tls.key"
-	ENV_DEFAULT_TRUST_STORE = "DEFAULT_TRUST_STORE"
+	CertFile                 = "/certs/tls.crt"
+	KeyFile                  = "/certs/tls.key"
+	ENV_DEFAULT_TRUST_POLICY = "DEFAULT_TRUST_POLICY"
 )
 
 type ImageInfo struct {

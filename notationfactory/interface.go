@@ -9,6 +9,6 @@ type NotationVeriferFactory interface {
 	// RefreshVerifiers will remove all the existing verifiers and create new ones using the trust policies in notation directory
 	RefreshVerifiers() error
 
-	// GetVerifier returns a verifier based on the trust store in request or the default truststore in trust store env
+	// GetVerifier returns a verifier based on the trust policy in request or the default trustpolicy in trust policy env
 	GetVerifier(requestData *types.RequestData) (*notation.Verifier, error)
 }

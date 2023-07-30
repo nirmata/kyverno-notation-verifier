@@ -94,19 +94,19 @@ func (f *notationverifierfactory) GetVerifier(requestData *types.RequestData) (*
 
 	trustPolicy := requestData.TrustPolicy
 	if len(trustPolicy) == 0 {
-		trustPolicy = os.Getenv(types.ENV_DEFAULT_TRUST_STORE)
+		trustPolicy = os.Getenv(types.ENV_DEFAULT_TRUST_POLICY)
 		f.log.Infof("Using default trust policy from env")
 	} else {
 		f.log.Infof("Using trust policy provided in the request")
 	}
 
 	if len(trustPolicy) == 0 {
-		return nil, errors.Errorf("no trust store specified, please specify a trust store in request or set %s env", types.ENV_DEFAULT_TRUST_STORE)
+		return nil, errors.Errorf("no trust policy specified, please specify a trust policy in request or set %s env", types.ENV_DEFAULT_TRUST_POLICY)
 	}
 
 	verifier, found := f.verifiers[trustPolicy]
 	if !found {
-		return nil, errors.Errorf("no trust store found for trust store %s", trustPolicy)
+		return nil, errors.Errorf("no trust policy found for trust policy %s", trustPolicy)
 	}
 	f.log.Infof("Found notation verifer for trust policy %s", trustPolicy)
 

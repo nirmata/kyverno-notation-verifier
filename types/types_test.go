@@ -10,7 +10,7 @@ import (
 var (
 	requestBody = `
 {
-  "trustPolicy": "aws-trust-store",
+  "trustPolicy": "aws-trust-policy",
   "images": {
     "containers": {
       "tomcat": {
@@ -38,7 +38,7 @@ func TestInput(t *testing.T) {
 	var requestData RequestData
 	err := json.Unmarshal([]byte(requestBody), &requestData)
 	assert.NilError(t, err)
-	assert.Equal(t, requestData.TrustPolicy, "aws-trust-store")
+	assert.Equal(t, requestData.TrustPolicy, "aws-trust-policy")
 	assert.Equal(t, requestData.Images.Containers["tomcat"].Name, "tomcat")
 	assert.Equal(t, requestData.Images.Containers["tomcat"].Pointer, "spec/container/0/image")
 	assert.Equal(t, requestData.Images.InitContainers["vault"].Name, "vault")

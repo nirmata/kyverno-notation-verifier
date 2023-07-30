@@ -58,6 +58,7 @@ func (f *notationverifierfactory) RefreshVerifiers() error {
 	for _, e := range entries {
 		f.log.Infof("Reading file in notation directory, %s", e.Name())
 		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			f.log.Infof("Entry is a directory %s", e.Name())
 			continue
 		}
 
@@ -95,9 +96,9 @@ func (f *notationverifierfactory) GetVerifier(requestData *types.RequestData) (*
 	trustPolicy := requestData.TrustPolicy
 	if len(trustPolicy) == 0 {
 		trustPolicy = os.Getenv(types.ENV_DEFAULT_TRUST_POLICY)
-		f.log.Infof("Using default trust policy from env")
+		f.log.Infof("Using default trust policy from env %s", trustPolicy)
 	} else {
-		f.log.Infof("Using trust policy provided in the request")
+		f.log.Infof("Using trust policy provided in the request %s", trustPolicy)
 	}
 
 	if len(trustPolicy) == 0 {
@@ -114,6 +115,7 @@ func (f *notationverifierfactory) GetVerifier(requestData *types.RequestData) (*
 }
 
 func (f *notationverifierfactory) loadTrustPolicy(path string) (*trustpolicy.Document, error) {
+	f.log.Infof("Loading trust policy path=%s", path)
 	fileInfo, err := os.Lstat(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

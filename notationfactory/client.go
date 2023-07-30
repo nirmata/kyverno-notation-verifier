@@ -54,6 +54,7 @@ func (f *notationverifierfactory) RefreshVerifiers() error {
 		f.log.Errorf("failed to read notation directory %v", err)
 		return err
 	}
+	f.log.Infof("Files in notation directory, %v", entries)
 
 	for _, e := range entries {
 		f.log.Infof("Reading file in notation directory, %s", e.Name())

@@ -75,7 +75,7 @@ func (f *notationverifierfactory) RefreshVerifiers() error {
 		if err != nil {
 			return err
 		}
-		trustpolicy := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+		trustpolicy := strings.TrimSuffix(filepath.Base(fileName), filepath.Ext(fileName))
 
 		verifiers[trustpolicy] = &verifier
 		f.log.Infof("Added verifier to the list for trust policy %s", trustPolicy)

@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -30,6 +31,7 @@ import (
 
 	"github.com/go-logr/logr"
 	notationv1alpha1 "github.com/nirmata/kyverno-notation-verifier/kubenotation/api/v1alpha1"
+	"github.com/nirmata/kyverno-notation-verifier/kubenotation/utils"
 	"github.com/pkg/errors"
 )
 
@@ -63,8 +65,8 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if trustPolicy.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(&trustPolicy, finalizerName) {
-			controllerutil.AddFinalizer(&trustPolicy, finalizerName)
+		if !controllerutil.ContainsFinalizer(&trustPolicy, utils.FinalizerName) {
+			controllerutil.AddFinalizer(&trustPolicy, utils.FinalizerName)
 			if err := r.Update(ctx, &trustPolicy); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -79,7 +81,7 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust policy")
 		}
 
-		controllerutil.RemoveFinalizer(&trustPolicy, finalizerName)
+		controllerutil.RemoveFinalizer(&trustPolicy, utils.FinalizerName)
 		if err := r.Update(ctx, &trustPolicy); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -89,7 +91,8 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdChangeChan *chan struct{}) error {
-	if err := os.MkdirAll(notationPath, 0700); err != nil {
+	log.Info("writing trust policy", "name", policy.Name)
+	if err := os.MkdirAll(utils.NotationPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
 	}
 
@@ -98,7 +101,8 @@ func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdC
 		return errors.Wrapf(err, "failed to marshal to JSON")
 	}
 
-	fileName := filepath.Join(notationPath, "trustpolicy.json")
+	trustPolicyName := fmt.Sprintf("%s.json", policy.Name)
+	fileName := filepath.Join(utils.NotationPath, trustPolicyName)
 	os.WriteFile(fileName, jsonData, 0600)
 
 	log.Info("updated trust policy", "path", fileName)
@@ -114,7 +118,10 @@ func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdC
 }
 
 func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdChangeChan *chan struct{}) error {
-	fileName := filepath.Join(notationPath, "trustpolicy.json")
+	log.Info("deleting trust policy", "name", policy.Name)
+
+	trustPolicyName := fmt.Sprintf("%s.json", policy.Name)
+	fileName := filepath.Join(utils.NotationPath, trustPolicyName)
 	if err := os.RemoveAll(fileName); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", fileName)
 	}

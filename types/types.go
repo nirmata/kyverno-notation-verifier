@@ -5,8 +5,9 @@ import (
 )
 
 var (
-	CertFile = "/certs/tls.crt"
-	KeyFile  = "/certs/tls.key"
+	CertFile                 = "/certs/tls.crt"
+	KeyFile                  = "/certs/tls.key"
+	ENV_DEFAULT_TRUST_POLICY = "DEFAULT_TRUST_POLICY"
 )
 
 type ImageInfo struct {
@@ -41,6 +42,8 @@ type Result struct {
 // Data format of request body for HandleCheckImages
 type RequestData struct {
 	Images ImageInfos `json:"images"`
+
+	TrustPolicy string `json:"trustPolicy"`
 }
 
 // Data format of response body for HandleCheckImages

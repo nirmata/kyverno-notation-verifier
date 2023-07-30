@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/nirmata/kyverno-notation-verifier/notationfactory"
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/notaryproject/notation-go"
 	notationlog "github.com/notaryproject/notation-go/log"
 	notationregistry "github.com/notaryproject/notation-go/registry"
-	notationverifier "github.com/notaryproject/notation-go/verifier"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
@@ -31,7 +30,7 @@ import (
 type verifier struct {
 	logger                     *zap.SugaredLogger
 	kubeClient                 *kubernetes.Clientset
-	notationVerifier           notation.Verifier
+	notationVerifierFactory    notationfactory.NotationVeriferFactory
 	informerFactory            kubeinformers.SharedInformerFactory
 	secretLister               corev1listers.SecretNamespaceLister
 	configMapLister            corev1listers.ConfigMapNamespaceLister
@@ -42,7 +41,6 @@ type verifier struct {
 	maxSignatureAttempts       int
 	debug                      bool
 	stopCh                     chan struct{}
-	lock                       sync.Mutex
 }
 
 type verifierOptsFunc func(*verifier)
@@ -98,9 +96,10 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 		return nil, errors.Wrap(err, "failed to create Kubernetes client")
 	}
 
-	v.notationVerifier, err = notationverifier.NewFromConfig()
+	v.notationVerifierFactory = notationfactory.NewNotationVerifierFactory(logger)
+	err = v.notationVerifierFactory.RefreshVerifiers()
 	if err != nil {
-		v.logger.Errorf("failed to create notation verifier, error: %v", err)
+		v.logger.Errorf("failed to create notation verifiers, error: %v", err)
 		return nil, err
 	}
 	v.logger.Info("notation verifier created")
@@ -124,12 +123,9 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 }
 
 func (v *verifier) UpdateNotationVerfier() error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	var err error
-	v.notationVerifier, err = notationverifier.NewFromConfig()
+	err := v.notationVerifierFactory.RefreshVerifiers()
 	if err != nil {
-		v.logger.Errorf("notation verifier creation failed, not updating verifier: %v", err)
+		v.logger.Errorf("notation verifier creation failed, not updating verifiers: %v", err)
 		return err
 	}
 	return nil
@@ -141,19 +137,26 @@ func (v *verifier) Stop() {
 	v.stopCh <- struct{}{}
 }
 
-func (v *verifier) verifyImages(ctx context.Context, images *types.ImageInfos) ([]byte, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *verifier) verifyImages(ctx context.Context, requestData *types.RequestData) ([]byte, error) {
 	verificationFailed := false
+	images := requestData.Images
 
 	response := types.ResponseData{
 		Verified: true,
 		Results:  make([]types.Result, 0),
 	}
 
+	notationVerifier, err := v.notationVerifierFactory.GetVerifier(requestData)
+	if err != nil {
+		verificationFailed = true
+		response.Verified = false
+		response.ErrorMessage = fmt.Sprintf("failed to create notation verifier: %s", err.Error())
+		v.logger.Errorf("failed to create notation verifier: %s", err.Error())
+	}
+
 	if !verificationFailed {
 		for _, image := range images.Containers {
-			result, err := v.verifyImageInfo(ctx, &image)
+			result, err := v.verifyImageInfo(ctx, notationVerifier, &image)
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
@@ -169,7 +172,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *types.ImageInfos) (
 
 	if !verificationFailed {
 		for _, image := range images.InitContainers {
-			result, err := v.verifyImageInfo(ctx, &image)
+			result, err := v.verifyImageInfo(ctx, notationVerifier, &image)
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
@@ -185,7 +188,7 @@ func (v *verifier) verifyImages(ctx context.Context, images *types.ImageInfos) (
 
 	if !verificationFailed {
 		for _, image := range images.EphemeralContainers {
-			result, err := v.verifyImageInfo(ctx, &image)
+			result, err := v.verifyImageInfo(ctx, notationVerifier, &image)
 			if err != nil {
 				verificationFailed = true
 				response.Verified = false
@@ -211,9 +214,9 @@ func (v *verifier) verifyImages(ctx context.Context, images *types.ImageInfos) (
 	return data, nil
 }
 
-func (v *verifier) verifyImageInfo(ctx context.Context, image *types.ImageInfo) (*types.Result, error) {
+func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image *types.ImageInfo) (*types.Result, error) {
 	v.logger.Infof("verifying image infos %+v", image)
-	digest, err := v.verifyImage(ctx, image.String())
+	digest, err := v.verifyImage(ctx, notationVerifier, image.String())
 	if err != nil {
 		v.logger.Errorf("verification failed for image %s: %v", image, err)
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
@@ -228,7 +231,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, image *types.ImageInfo) 
 	}, nil
 }
 
-func (v *verifier) verifyImage(ctx context.Context, image string) (string, error) {
+func (v *verifier) verifyImage(ctx context.Context, notationVerifier *notation.Verifier, image string) (string, error) {
 	v.logger.Infof("verifying image %s", image)
 	repo, reference, err := v.parseReferenceAndResolveDigest(ctx, image)
 	if err != nil {
@@ -259,7 +262,7 @@ func (v *verifier) verifyImage(ctx context.Context, image string) (string, error
 		nlog = notationlog.WithLogger(ctx, v.logger)
 	}
 
-	desc, outcomes, err := notation.Verify(nlog, v.notationVerifier, repo, opts)
+	desc, outcomes, err := notation.Verify(nlog, *notationVerifier, repo, opts)
 	if err != nil {
 		return "", err
 	}

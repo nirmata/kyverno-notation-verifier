@@ -91,6 +91,9 @@ spec:
                   - signatureVerification
                   type: object
                 type: array
+              trustPolicyName:
+                description: Name is the name for the trust store file
+                type: string
               version:
                 description: Version of the policy document
                 enum:
@@ -98,6 +101,7 @@ spec:
                 type: string
             required:
             - trustPolicies
+            - trustPolicyName
             - version
             type: object
         required:

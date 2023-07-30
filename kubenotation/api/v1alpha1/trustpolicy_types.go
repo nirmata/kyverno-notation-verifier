@@ -43,6 +43,9 @@ type TrustDocument struct {
 	// +kubebuilder:validation:Enum="1.0"
 	Version string `json:"version"`
 
+	// Name is the name for the trust store file
+	TrustPolicyName string `json:"trustPolicyName"`
+
 	// TrustPolicies include each policy statement
 	TrustPolicies []TrustPolicyStatement `json:"trustPolicies"`
 }

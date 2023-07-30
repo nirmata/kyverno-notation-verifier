@@ -91,7 +91,7 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdChangeChan *chan struct{}) error {
-	log.Info("writing trust policy", "name", policy.Name)
+	log.Info("writing trust policy", "name", policy.Spec.TrustPolicyName)
 	if err := os.MkdirAll(utils.NotationPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
 	}
@@ -101,7 +101,7 @@ func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdC
 		return errors.Wrapf(err, "failed to marshal to JSON")
 	}
 
-	trustPolicyName := fmt.Sprintf("%s.json", policy.Name)
+	trustPolicyName := fmt.Sprintf("%s.json", policy.Spec.TrustPolicyName)
 	fileName := filepath.Join(utils.NotationPath, trustPolicyName)
 	os.WriteFile(fileName, jsonData, 0600)
 
@@ -118,9 +118,9 @@ func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdC
 }
 
 func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdChangeChan *chan struct{}) error {
-	log.Info("deleting trust policy", "name", policy.Name)
+	log.Info("deleting trust policy", "name", policy.Spec.TrustPolicyName)
 
-	trustPolicyName := fmt.Sprintf("%s.json", policy.Name)
+	trustPolicyName := fmt.Sprintf("%s.json", policy.Spec.TrustPolicyName)
 	fileName := filepath.Join(utils.NotationPath, trustPolicyName)
 	if err := os.RemoveAll(fileName); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", fileName)

@@ -158,9 +158,13 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *verifier) UpdateNotationVerfier() error {
-	err := v.notationVerifierFactory.RefreshVerifiers()
-	if err != nil {
+	if err := v.notationVerifierFactory.RefreshVerifiers(); err != nil {
 		v.logger.Errorf("notation verifier creation failed, not updating verifiers: %v", err)
+		return err
+	}
+
+	if err := v.cache.Clear(); err != nil {
+		v.logger.Errorf("failed to clear image verify cache: %v", err)
 		return err
 	}
 	return nil

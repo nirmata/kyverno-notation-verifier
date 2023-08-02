@@ -19,6 +19,7 @@ import (
 	enginecontext "github.com/kyverno/kyverno/pkg/engine/context"
 	"github.com/kyverno/kyverno/pkg/engine/jmespath"
 	"github.com/kyverno/kyverno/pkg/engine/variables"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/cache"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/notaryproject/notation-go"
@@ -59,6 +60,12 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	}
 	v.logger.Info("notation verifier created")
 
+	v.cache, err = cache.New(cache.WithCleanupWindow(v.cacheCleanupTime), cache.WithMaxSize(v.maxCacheSize), cache.WithTTLDuration(v.maxCacheTTL))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create cache client")
+	}
+	v.logger.Info("cache created")
+
 	namespace := os.Getenv("POD_NAMESPACE")
 	v.informerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(v.kubeClient, 15*time.Minute, kubeinformers.WithNamespace(namespace))
 	v.secretLister = v.informerFactory.Core().V1().Secrets().Lister().Secrets(namespace)
@@ -93,7 +100,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.Containers {
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image)
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
@@ -105,7 +112,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.InitContainers {
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image)
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
@@ -117,7 +124,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.EphemeralContainers {
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image)
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
@@ -131,23 +138,23 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 		return nil, errors.Wrapf(err, "failed to create attestation list")
 	}
 
-	if err := v.verifyAttestations(ctx, notationVerifier, response); err != nil {
+	if err := v.verifyAttestations(ctx, notationVerifier, response, v.getTrustPolicy(requestData)); err != nil {
 		return response.VerificationFailed(fmt.Sprintf("failed to verify attestatations: %v", err.Error()))
 	}
 
 	return response.VerificationSucceeded("")
 }
 
-func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *notation.Verifier, response *Response) error {
+func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *notation.Verifier, response *Response, trustPolicy string) error {
 	for image, list := range response.GetImageList() {
-		if err := v.verifyAttestation(ctx, notationVerifier, image, list); err != nil {
+		if err := v.verifyAttestation(ctx, notationVerifier, image, list, trustPolicy); err != nil {
 			return errors.Wrapf(err, "failed to verify attestations")
 		}
 	}
 	return nil
 }
 
-func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *notation.Verifier, image string, attestationList types.AttestationList) error {
+func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *notation.Verifier, image string, attestationList types.AttestationList, trustPolicy string) error {
 	if len(attestationList) == 0 {
 		return nil
 	}
@@ -183,6 +190,10 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		}
 
 		conditions := attestationList[referrer.ArtifactType]
+
+		if found := v.cache.GetAttestation(trustPolicy, image, referrer.ArtifactType, conditions); found {
+			continue
+		}
 		referrerRef := v.getReference(referrer, ref)
 
 		_, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
@@ -192,6 +203,10 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 
 		if err := v.verifyConditions(ctx, ref, referrer, conditions, remoteOpts...); err != nil {
 			return errors.Wrapf(err, "failed to verify conditions %s %s", ref.String(), referrer.Digest.String())
+		}
+
+		if err := v.cache.AddAttestation(trustPolicy, image, referrer.ArtifactType, conditions); err != nil {
+			return errors.Wrapf(err, "failed to add attestation to the cache", ref.String(), referrer.Digest.String())
 		}
 	}
 	return nil
@@ -271,7 +286,10 @@ func (v *verifier) extractPayload(ctx context.Context, repoRef name.Reference, d
 	return predicate, nil
 }
 
-func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo) (*types.ImageInfo, error) {
+func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo, trustPolicy string) (*types.ImageInfo, error) {
+	if img, found := v.cache.GetImage(trustPolicy, image.String()); found {
+		return img, nil
+	}
 	v.logger.Infof("verifying image infos %+v", image)
 	digest, err := v.verifyReferences(ctx, notationVerifier, image.String())
 	if err != nil {
@@ -279,6 +297,9 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
 	}
 	image.Digest = digest
+	if err := v.cache.AddImage(trustPolicy, image.String(), image); err != nil {
+		return nil, errors.Wrapf(err, "failed to add image to the cache %s", image)
+	}
 	return &image, nil
 }
 
@@ -476,4 +497,12 @@ func (v *verifier) getReference(desc v1.Descriptor, ref name.Reference) string {
 
 	return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + desc.Digest.String()
 
+}
+
+func (v *verifier) getTrustPolicy(req *types.RequestData) string {
+	trustPolicy := req.TrustPolicy
+	if len(trustPolicy) == 0 {
+		trustPolicy = os.Getenv(types.ENV_DEFAULT_TRUST_POLICY)
+	}
+	return trustPolicy
 }

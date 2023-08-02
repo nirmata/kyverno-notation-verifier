@@ -6,10 +6,12 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-containerregistry/pkg/authn"
 	enginecontext "github.com/kyverno/kyverno/pkg/engine/context"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/cache"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/nirmata/kyverno-notation-verifier/verifier/internal"
@@ -41,9 +43,13 @@ type verifier struct {
 	insecureRegistry           bool
 	pluginConfigMap            string
 	maxSignatureAttempts       int
+	maxCacheSize               int
+	maxCacheTTL                time.Duration
+	cacheCleanupTime           time.Duration
 	debug                      bool
 	stopCh                     chan struct{}
 	engineContext              enginecontext.Interface
+	cache                      cache.Cache
 }
 
 type verifierOptsFunc func(*verifier)
@@ -69,6 +75,18 @@ func WithPluginConfig(pluginConfigMap string) verifierOptsFunc {
 func WithMaxSignatureAttempts(maxSignatureAttempts int) verifierOptsFunc {
 	return func(v *verifier) {
 		v.maxSignatureAttempts = maxSignatureAttempts
+	}
+}
+
+func WithMaxCacheSize(maxCacheSize int) verifierOptsFunc {
+	return func(v *verifier) {
+		v.maxCacheSize = maxCacheSize
+	}
+}
+
+func WithMaxCacheTTL(maxCacheTTL time.Duration) verifierOptsFunc {
+	return func(v *verifier) {
+		v.maxCacheTTL = maxCacheTTL
 	}
 }
 

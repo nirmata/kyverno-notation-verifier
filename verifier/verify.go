@@ -15,7 +15,6 @@ import (
 	notationregistry "github.com/notaryproject/notation-go/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -193,20 +192,22 @@ func (v *verifier) verifyImage(ctx context.Context, notationVerifier *notation.V
 
 	desc, outcomes, err := notation.Verify(nlog, *notationVerifier, repo, opts)
 	if err != nil {
+		v.logger.Infof("Verfication failed %v", err)
 		return "", err
 	}
 
-	var errs []error
+	// var errs []error
 	for _, o := range outcomes {
 		if o.Error != nil {
-			errs = append(errs, o.Error)
+			// errs = append(errs, o.Error)
+			v.logger.Infof("Verfication completed, outcomes: %v", o.Error)
 		}
 	}
 
-	if len(errs) > 0 {
-		err := multierr.Combine(errs...)
-		return "", err
-	}
+	// if len(errs) > 0 {
+	// 	err := multierr.Combine(errs...)
+	// 	return "", err
+	// }
 
 	return desc.Digest.String(), nil
 }

@@ -36,7 +36,11 @@ type cache struct {
 type Option = func(*cache) error
 
 func New(options ...Option) (Cache, error) {
-	cache := &cache{}
+	cache := &cache{
+		ttl:           1 * time.Hour,
+		cleanupWindow: 30 * time.Minute,
+		maxSize:       1000,
+	}
 	for _, opt := range options {
 		if err := opt(cache); err != nil {
 			return nil, err

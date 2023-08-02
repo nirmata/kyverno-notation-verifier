@@ -9,6 +9,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-containerregistry/pkg/authn"
+	enginecontext "github.com/kyverno/kyverno/pkg/engine/context"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/nirmata/kyverno-notation-verifier/verifier/internal"
@@ -42,6 +43,7 @@ type verifier struct {
 	maxSignatureAttempts       int
 	debug                      bool
 	stopCh                     chan struct{}
+	engineContext              enginecontext.Interface
 }
 
 type verifierOptsFunc func(*verifier)
@@ -126,7 +128,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		ctx := context.Background()
-		data, err := v.verifyImages(ctx, &requestData)
+		data, err := v.verifyImagesAndAttestations(ctx, &requestData)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

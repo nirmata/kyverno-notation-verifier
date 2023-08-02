@@ -1,6 +1,7 @@
 package types
 
 import (
+	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	imageutils "github.com/kyverno/kyverno/pkg/utils/image"
 )
 
@@ -15,6 +16,23 @@ type ImageInfo struct {
 
 	// Pointer is the path to the image object in the resource
 	Pointer string `json:"jsonPointer"`
+}
+
+type AttestationType struct {
+	// Name is the media type of the attestation
+	Name string `json:"name"`
+
+	// Conditions are used to determine if a policy rule should be applied by evaluating a
+	// set of conditions. The declaration can contain nested `any` or `all` statements.
+	Conditions kyvernov1.AnyAllConditions `json:"conditions"`
+}
+
+type AttestationsInfo struct {
+	// Image references are the regex of the images containing these attestations
+	ImageReference string `json:"imageReference"`
+
+	// type is a list of all the attestation types to check in these images
+	Type []AttestationType `json:"type"`
 }
 
 type ImageInfos struct {
@@ -41,9 +59,13 @@ type Result struct {
 
 // Data format of request body for HandleCheckImages
 type RequestData struct {
+	// List of images in the form of kyverno's image variable
 	Images ImageInfos `json:"images"`
 
 	TrustPolicy string `json:"trustPolicy"`
+
+	// List of image regex and attestations
+	Attestations []AttestationsInfo `json:"attestations"`
 }
 
 // Data format of response body for HandleCheckImages
@@ -59,3 +81,5 @@ type ResponseData struct {
 	// Results is empty when verification fails
 	Results []Result `json:"results"`
 }
+
+type AttestationList map[string][]kyvernov1.AnyAllConditions

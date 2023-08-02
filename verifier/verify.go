@@ -191,6 +191,14 @@ func (v *verifier) verifyImage(ctx context.Context, notationVerifier *notation.V
 	}
 
 	desc, outcomes, err := notation.Verify(nlog, *notationVerifier, repo, opts)
+	v.logger.Infof("Verification outcomes %v", len(outcomes))
+	for _, o := range outcomes {
+		v.logger.Infof("Verfication completed, outcomes")
+		if o.Error != nil {
+			// errs = append(errs, o.Error)
+			v.logger.Infof("Verfication error, outcomes error: %v", o.Error)
+		}
+	}
 	if err != nil {
 		v.logger.Infof("Verfication failed %v", err)
 		return "", err

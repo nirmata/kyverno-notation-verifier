@@ -1,4 +1,4 @@
-package verifier
+package internal
 
 import (
 	"encoding/json"
@@ -23,6 +23,6 @@ func Test_RequestValidation(t *testing.T) {
 	err := json.Unmarshal([]byte(noImagesRequest), &requestData)
 	assert.NilError(t, err)
 
-	err = validateRequestData(&requestData)
+	err = ValidateRequestData(&requestData)
 	assert.Error(t, err, "atleast one image must be provided")
 }

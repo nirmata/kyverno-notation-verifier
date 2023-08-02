@@ -8,8 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/nirmata/kyverno-notation-verifier/notationfactory"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/notaryproject/notation-go"
 	notationlog "github.com/notaryproject/notation-go/log"
@@ -20,66 +19,11 @@ import (
 	"go.uber.org/zap"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	corev1listers "k8s.io/client-go/listers/core/v1"
 	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
-
-type verifier struct {
-	logger                     *zap.SugaredLogger
-	kubeClient                 *kubernetes.Clientset
-	notationVerifierFactory    notationfactory.NotationVeriferFactory
-	informerFactory            kubeinformers.SharedInformerFactory
-	secretLister               corev1listers.SecretNamespaceLister
-	configMapLister            corev1listers.ConfigMapNamespaceLister
-	providerAuthConfigResolver func(context.Context, registry.Reference) (authn.AuthConfig, error)
-	imagePullSecrets           string
-	insecureRegistry           bool
-	pluginConfigMap            string
-	maxSignatureAttempts       int
-	debug                      bool
-	stopCh                     chan struct{}
-}
-
-type verifierOptsFunc func(*verifier)
-
-func WithImagePullSecrets(secrets string) verifierOptsFunc {
-	return func(v *verifier) {
-		v.imagePullSecrets = secrets
-	}
-}
-
-func WithInsecureRegistry(insecureRegistry bool) verifierOptsFunc {
-	return func(v *verifier) {
-		v.insecureRegistry = insecureRegistry
-	}
-}
-
-func WithPluginConfig(pluginConfigMap string) verifierOptsFunc {
-	return func(v *verifier) {
-		v.pluginConfigMap = pluginConfigMap
-	}
-}
-
-func WithMaxSignatureAttempts(maxSignatureAttempts int) verifierOptsFunc {
-	return func(v *verifier) {
-		v.maxSignatureAttempts = maxSignatureAttempts
-	}
-}
-
-func WithEnableDebug(debug bool) verifierOptsFunc {
-	return func(v *verifier) {
-		v.debug = debug
-	}
-}
-
-func WithProviderAuthConfigResolver(providerAuthConfigResolver func(context.Context, registry.Reference) (authn.AuthConfig, error)) verifierOptsFunc {
-	return func(v *verifier) {
-		v.providerAuthConfigResolver = providerAuthConfigResolver
-	}
-}
 
 func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier, error) {
 	v := &verifier{
@@ -120,21 +64,6 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	go v.informerFactory.Start(v.stopCh)
 
 	return v, nil
-}
-
-func (v *verifier) UpdateNotationVerfier() error {
-	err := v.notationVerifierFactory.RefreshVerifiers()
-	if err != nil {
-		v.logger.Errorf("notation verifier creation failed, not updating verifiers: %v", err)
-		return err
-	}
-	return nil
-}
-
-func (v *verifier) Stop() {
-	v.logger.Sync()
-	v.informerFactory.Shutdown()
-	v.stopCh <- struct{}{}
 }
 
 func (v *verifier) verifyImages(ctx context.Context, requestData *types.RequestData) ([]byte, error) {

@@ -137,6 +137,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	if err := response.BuildAttestationList(requestData.Attestations); err != nil {
 		return nil, errors.Wrapf(err, "failed to create attestation list")
 	}
+	v.logger.Infof("built attestation list", response.GetImageList())
 
 	if err := v.verifyAttestations(ctx, notationVerifier, response, v.getTrustPolicy(requestData)); err != nil {
 		return response.VerificationFailed(fmt.Sprintf("failed to verify attestatations: %v", err.Error()))
@@ -145,7 +146,8 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	return response.VerificationSucceeded("")
 }
 
-func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *notation.Verifier, response *Response, trustPolicy string) error {
+func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *notation.Verifier, response Response, trustPolicy string) error {
+	v.logger.Infof("verifying attestations %v", response.GetImageList())
 	for image, list := range response.GetImageList() {
 		if err := v.verifyAttestation(ctx, notationVerifier, image, list, trustPolicy); err != nil {
 			return errors.Wrapf(err, "failed to verify attestations")
@@ -155,6 +157,7 @@ func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *not
 }
 
 func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *notation.Verifier, image string, attestationList types.AttestationList, trustPolicy string) error {
+	v.logger.Infof("verifying attestation, image=%s; attestations=%v", image, attestationList)
 	if len(attestationList) == 0 {
 		return nil
 	}
@@ -189,6 +192,8 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 			continue
 		}
 
+		v.logger.Infof("verifying attestation, image=%s; type=%s", image, referrer.ArtifactType)
+
 		conditions := attestationList[referrer.ArtifactType]
 
 		if found := v.cache.GetAttestation(trustPolicy, image, referrer.ArtifactType, conditions); found {
@@ -201,14 +206,17 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 			return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
 		}
 
-		if err := v.verifyConditions(ctx, ref, referrer, conditions, remoteOpts...); err != nil {
-			return errors.Wrapf(err, "failed to verify conditions %s %s", ref.String(), referrer.Digest.String())
+		if len(conditions) != 0 {
+			if err := v.verifyConditions(ctx, ref, referrer, conditions, remoteOpts...); err != nil {
+				return errors.Wrapf(err, "failed to verify conditions %s %s", ref.String(), referrer.Digest.String())
+			}
 		}
 
 		if err := v.cache.AddAttestation(trustPolicy, image, referrer.ArtifactType, conditions); err != nil {
 			return errors.Wrapf(err, "failed to add attestation to the cache", ref.String(), referrer.Digest.String())
 		}
 	}
+
 	return nil
 }
 

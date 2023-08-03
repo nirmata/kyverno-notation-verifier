@@ -60,7 +60,7 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	}
 	v.logger.Info("notation verifier created")
 
-	v.cache, err = cache.New(cache.WithCleanupWindow(v.cacheCleanupTime), cache.WithMaxSize(v.maxCacheSize), cache.WithTTLDuration(v.maxCacheTTL))
+	v.cache, err = cache.New(cache.WithCacheEnabled(v.useCache), cache.WithCleanupWindow(v.cacheCleanupTime), cache.WithMaxSize(v.maxCacheSize), cache.WithTTLDuration(v.maxCacheTTL))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create cache client")
 	}
@@ -197,6 +197,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		conditions := attestationList[referrer.ArtifactType]
 
 		if found := v.cache.GetAttestation(trustPolicy, image, referrer.ArtifactType, conditions); found {
+			v.logger.Infof("Entry for the attestation found in cache, skipping image=%s; type=%s", image, referrer.ArtifactType)
 			continue
 		}
 		referrerRef := v.getReference(referrer, ref)
@@ -296,6 +297,7 @@ func (v *verifier) extractPayload(ctx context.Context, repoRef name.Reference, d
 
 func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo, trustPolicy string) (*types.ImageInfo, error) {
 	if img, found := v.cache.GetImage(trustPolicy, image.String()); found {
+		v.logger.Infof("Entry for the image found in cache, skipping image=%s; trustpolicy=%s", image, trustPolicy)
 		return img, nil
 	}
 	v.logger.Infof("verifying image infos %+v", image)

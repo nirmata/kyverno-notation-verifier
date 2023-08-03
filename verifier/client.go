@@ -44,6 +44,7 @@ type verifier struct {
 	pluginConfigMap            string
 	maxSignatureAttempts       int
 	maxCacheSize               int
+	useCache                   bool
 	maxCacheTTL                time.Duration
 	cacheCleanupTime           time.Duration
 	debug                      bool
@@ -87,6 +88,12 @@ func WithMaxCacheSize(maxCacheSize int) verifierOptsFunc {
 func WithMaxCacheTTL(maxCacheTTL time.Duration) verifierOptsFunc {
 	return func(v *verifier) {
 		v.maxCacheTTL = maxCacheTTL
+	}
+}
+
+func WithCacheEnabled(useCache bool) verifierOptsFunc {
+	return func(v *verifier) {
+		v.useCache = useCache
 	}
 }
 

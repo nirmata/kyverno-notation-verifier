@@ -27,6 +27,7 @@ const (
 )
 
 type cache struct {
+	useCache      bool
 	ttl           time.Duration
 	cleanupWindow time.Duration
 	maxSize       int
@@ -66,6 +67,13 @@ func New(options ...Option) (Cache, error) {
 	return cache, nil
 }
 
+func WithCacheEnabled(b bool) Option {
+	return func(c *cache) error {
+		c.useCache = b
+		return nil
+	}
+}
+
 func WithMaxSize(s int) Option {
 	return func(c *cache) error {
 		c.maxSize = s
@@ -88,6 +96,10 @@ func WithCleanupWindow(t time.Duration) Option {
 }
 
 func (c *cache) AddImage(trustPolicy string, imageRef string, result types.ImageInfo) error {
+	if !c.useCache {
+		return nil
+	}
+
 	key := createImageKey(trustPolicy, imageRef)
 
 	val, err := json.Marshal(result)
@@ -98,6 +110,10 @@ func (c *cache) AddImage(trustPolicy string, imageRef string, result types.Image
 }
 
 func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.ImageInfo, bool) {
+	if !c.useCache {
+		return nil, false
+	}
+
 	key := createImageKey(trustPolicy, imageRef)
 	entry, err := c.bigCache.Get(key)
 
@@ -113,6 +129,10 @@ func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.ImageInfo,
 }
 
 func (c *cache) AddAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) error {
+	if !c.useCache {
+		return nil
+	}
+
 	key, err := createAttestationKey(trustPolicy, imageRef, attestationType, conditions)
 	if err != nil {
 		return err
@@ -121,6 +141,10 @@ func (c *cache) AddAttestation(trustPolicy string, imageRef string, attestationT
 }
 
 func (c *cache) GetAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) bool {
+	if !c.useCache {
+		return false
+	}
+
 	key, err := createAttestationKey(trustPolicy, imageRef, attestationType, conditions)
 	if err != nil {
 		return false
@@ -133,6 +157,10 @@ func (c *cache) GetAttestation(trustPolicy string, imageRef string, attestationT
 }
 
 func (c *cache) Clear() error {
+	if !c.useCache {
+		return nil
+	}
+
 	return c.bigCache.Reset()
 }
 

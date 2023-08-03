@@ -214,7 +214,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		}
 
 		if err := v.cache.AddAttestation(trustPolicy, image, referrer.ArtifactType, conditions); err != nil {
-			return errors.Wrapf(err, "failed to add attestation to the cache", ref.String(), referrer.Digest.String())
+			return errors.Wrapf(err, "failed to add attestation to the cache image=%s, digest=%s", ref.String(), referrer.Digest.String())
 		}
 	}
 

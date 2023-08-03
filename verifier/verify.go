@@ -225,7 +225,7 @@ func (v *verifier) verifyConditions(ctx context.Context, repoRef name.Reference,
 	v.engineContext.Checkpoint()
 	defer v.engineContext.Restore()
 
-	payload, err := v.extractPayload(ctx, repoRef, desc, options...)
+	payload, err := v.fetchAndExtractPayload(ctx, repoRef, desc, options...)
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func (v *verifier) verifyConditions(ctx context.Context, repoRef name.Reference,
 	return nil
 }
 
-func (v *verifier) extractPayload(ctx context.Context, repoRef name.Reference, desc v1.Descriptor, options ...gcrremote.Option) (map[string]interface{}, error) {
+func (v *verifier) fetchAndExtractPayload(ctx context.Context, repoRef name.Reference, desc v1.Descriptor, options ...gcrremote.Option) (map[string]interface{}, error) {
 	refStr := repoRef.Context().RegistryStr() + "/" + repoRef.Context().RepositoryStr() + "@" + desc.Digest.String()
 	ref, err := name.ParseReference(refStr)
 	if err != nil {

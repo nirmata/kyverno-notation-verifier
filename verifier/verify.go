@@ -60,7 +60,7 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	}
 	v.logger.Info("notation verifier created")
 
-	v.cache, err = cache.New(cache.WithCacheEnabled(v.useCache), cache.WithCleanupWindow(v.cacheCleanupTime), cache.WithMaxSize(v.maxCacheSize), cache.WithTTLDuration(v.maxCacheTTL))
+	v.cache, err = cache.New(cache.WithCacheEnabled(v.useCache), cache.WithMaxSize(v.maxCacheSize), cache.WithTTLDuration(v.maxCacheTTL))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create cache client")
 	}

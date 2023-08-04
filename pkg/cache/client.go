@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/allegro/bigcache"
+	"github.com/dgraph-io/ristretto"
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/nirmata/kyverno-notation-verifier/types"
+	"github.com/pkg/errors"
 )
 
 type Cache interface {
@@ -19,7 +20,7 @@ type Cache interface {
 
 	GetAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) bool
 
-	Clear() error
+	Clear()
 }
 
 const (
@@ -27,20 +28,18 @@ const (
 )
 
 type cache struct {
-	useCache      bool
-	ttl           time.Duration
-	cleanupWindow time.Duration
-	maxSize       int
-	bigCache      *bigcache.BigCache
+	useCache  bool
+	ttl       time.Duration
+	maxSize   int64
+	ristretto *ristretto.Cache
 }
 
 type Option = func(*cache) error
 
 func New(options ...Option) (Cache, error) {
 	cache := &cache{
-		ttl:           1 * time.Hour,
-		cleanupWindow: 30 * time.Minute,
-		maxSize:       1000,
+		ttl:     1 * time.Hour,
+		maxSize: 1000,
 	}
 	for _, opt := range options {
 		if err := opt(cache); err != nil {
@@ -48,21 +47,16 @@ func New(options ...Option) (Cache, error) {
 		}
 	}
 
-	config := bigcache.Config{
-		Shards:             8,
-		LifeWindow:         cache.ttl,
-		CleanWindow:        cache.cleanupWindow,
-		MaxEntriesInWindow: 1000,
-		MaxEntrySize:       cache.maxSize,
-		Verbose:            true,
-		HardMaxCacheSize:   cache.maxSize,
+	config := &ristretto.Config{
+		NumCounters: cache.maxSize * 10,
 	}
-	bigCache, err := bigcache.NewBigCache(config)
+
+	ristretto, err := ristretto.NewCache(config)
 	if err != nil {
 		return nil, err
 	}
 
-	cache.bigCache = bigCache
+	cache.ristretto = ristretto
 
 	return cache, nil
 }
@@ -74,7 +68,7 @@ func WithCacheEnabled(b bool) Option {
 	}
 }
 
-func WithMaxSize(s int) Option {
+func WithMaxSize(s int64) Option {
 	return func(c *cache) error {
 		c.maxSize = s
 		return nil
@@ -84,13 +78,6 @@ func WithMaxSize(s int) Option {
 func WithTTLDuration(t time.Duration) Option {
 	return func(c *cache) error {
 		c.ttl = t
-		return nil
-	}
-}
-
-func WithCleanupWindow(t time.Duration) Option {
-	return func(c *cache) error {
-		c.cleanupWindow = t
 		return nil
 	}
 }
@@ -106,7 +93,11 @@ func (c *cache) AddImage(trustPolicy string, imageRef string, result types.Image
 	if err != nil {
 		return err
 	}
-	return c.bigCache.Set(key, val)
+
+	if ok := c.ristretto.SetWithTTL(key, val, 0, c.ttl); !ok {
+		return errors.Errorf("could not create cache entry for key=%s", key)
+	}
+	return nil
 }
 
 func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.ImageInfo, bool) {
@@ -115,14 +106,14 @@ func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.ImageInfo,
 	}
 
 	key := createImageKey(trustPolicy, imageRef)
-	entry, err := c.bigCache.Get(key)
+	entry, ok := c.ristretto.Get(key)
 
-	if err != nil {
+	if !ok {
 		return nil, false
 	}
 
 	var val types.ImageInfo
-	if err := json.Unmarshal(entry, &val); err != nil {
+	if val, ok = entry.(types.ImageInfo); !ok {
 		return nil, false
 	}
 	return &val, true
@@ -137,7 +128,11 @@ func (c *cache) AddAttestation(trustPolicy string, imageRef string, attestationT
 	if err != nil {
 		return err
 	}
-	return c.bigCache.Set(key, []byte(cacheEntry))
+
+	if ok := c.ristretto.SetWithTTL(key, []byte(cacheEntry), 0, c.ttl); !ok {
+		return errors.Errorf("could not create cache entry for key=%s", key)
+	}
+	return nil
 }
 
 func (c *cache) GetAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) bool {
@@ -149,19 +144,19 @@ func (c *cache) GetAttestation(trustPolicy string, imageRef string, attestationT
 	if err != nil {
 		return false
 	}
-	entry, err := c.bigCache.Get(key)
-	if err != nil || string(entry) != cacheEntry {
+	entry, found := c.ristretto.Get(key)
+	if !found || entry.(string) != cacheEntry {
 		return false
 	}
 	return true
 }
 
-func (c *cache) Clear() error {
+func (c *cache) Clear() {
 	if !c.useCache {
-		return nil
+		return
 	}
 
-	return c.bigCache.Reset()
+	c.ristretto.Clear()
 }
 
 func createImageKey(trustPolicy string, imageRef string) string {

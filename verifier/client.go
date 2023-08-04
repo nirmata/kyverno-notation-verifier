@@ -43,10 +43,9 @@ type verifier struct {
 	insecureRegistry           bool
 	pluginConfigMap            string
 	maxSignatureAttempts       int
-	maxCacheSize               int
+	maxCacheSize               int64
 	useCache                   bool
 	maxCacheTTL                time.Duration
-	cacheCleanupTime           time.Duration
 	debug                      bool
 	stopCh                     chan struct{}
 	engineContext              enginecontext.Interface
@@ -79,7 +78,7 @@ func WithMaxSignatureAttempts(maxSignatureAttempts int) verifierOptsFunc {
 	}
 }
 
-func WithMaxCacheSize(maxCacheSize int) verifierOptsFunc {
+func WithMaxCacheSize(maxCacheSize int64) verifierOptsFunc {
 	return func(v *verifier) {
 		v.maxCacheSize = maxCacheSize
 	}
@@ -170,10 +169,7 @@ func (v *verifier) UpdateNotationVerfier() error {
 		return err
 	}
 
-	if err := v.cache.Clear(); err != nil {
-		v.logger.Errorf("failed to clear image verify cache: %v", err)
-		return err
-	}
+	v.cache.Clear()
 	return nil
 }
 

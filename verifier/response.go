@@ -59,15 +59,12 @@ func (r *responseStruct) AddImage(img *types.ImageInfo) {
 
 func (r *responseStruct) addAttestations(img string, att types.AttestationType) error {
 	if _, found := r.imageList[img]; found {
-		if _, ok := r.imageList[img][att.Name]; ok {
+		if _, ok := r.imageList[img][att.Name]; !ok {
+			r.imageList[img][att.Name] = make([]kyvernov1.AnyAllConditions, 0)
+		}
+
+		if len(att.Conditions.AllConditions) != 0 && len(att.Conditions.AnyConditions) != 0 {
 			r.imageList[img][att.Name] = append(r.imageList[img][att.Name], att.Conditions)
-		} else {
-			if len(att.Conditions.AllConditions) != 0 && len(att.Conditions.AnyConditions) != 0 {
-				r.imageList[img][att.Name] = make([]kyvernov1.AnyAllConditions, 1)
-				r.imageList[img][att.Name][0] = att.Conditions
-			} else {
-				r.imageList[img][att.Name] = make([]kyvernov1.AnyAllConditions, 0)
-			}
 		}
 	} else {
 		return errors.New("Image not found in image list")

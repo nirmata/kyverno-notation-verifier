@@ -2,9 +2,9 @@ package verifier
 
 import (
 	"encoding/json"
-	"regexp"
 
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
+	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/pkg/errors"
 )
@@ -96,9 +96,8 @@ func (r *responseStruct) VerificationSucceeded(msg string) ([]byte, error) {
 
 func (r *responseStruct) BuildAttestationList(Attestations []types.AttestationsInfo) error {
 	for _, attestation := range Attestations {
-		var imagePattern = regexp.MustCompile(attestation.ImageReference)
 		for image := range r.imageList {
-			if imagePattern.MatchString(image) {
+			if wildcard.Match(attestation.ImageReference, image) {
 				for _, attestationType := range attestation.Type {
 					if err := r.addAttestations(image, attestationType); err != nil {
 						return err

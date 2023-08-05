@@ -188,12 +188,12 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		v.logger.Infof("verifying attestation, image=%s; type=%s", image, referrer.ArtifactType)
 
 		conditions := attestationList[referrer.ArtifactType]
-		referrerRef := v.getReference(referrer, ref)
+		// referrerRef := v.getReference(referrer, ref)
 
-		_, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
-		}
+		// _, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
+		// if err != nil {
+		// 	return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
+		// }
 
 		if len(conditions) != 0 {
 			if err := v.verifyConditions(ctx, ref, referrer, conditions, remoteOpts...); err != nil {
@@ -482,7 +482,5 @@ func (v *verifier) getManifestDescriptorFromReference(repo notationregistry.Repo
 }
 
 func (v *verifier) getReference(desc v1.Descriptor, ref name.Reference) string {
-
 	return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + desc.Digest.String()
-
 }

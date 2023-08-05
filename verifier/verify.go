@@ -88,7 +88,7 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 }
 
 func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData *types.RequestData) ([]byte, error) {
-	response := NewResponse()
+	response := NewResponse(v.logger)
 	verificationFailed := false
 	images := requestData.Images
 
@@ -200,12 +200,12 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 			v.logger.Infof("Entry for the attestation found in cache, skipping image=%s; type=%s", image, referrer.ArtifactType)
 			continue
 		}
-		referrerRef := v.getReference(referrer, ref)
+		// referrerRef := v.getReference(referrer, ref)
 
-		_, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
-		}
+		// _, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
+		// if err != nil {
+		// 	return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
+		// }
 
 		if len(conditions) != 0 {
 			if err := v.verifyConditions(ctx, ref, referrer, conditions, remoteOpts...); err != nil {
@@ -222,6 +222,8 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 }
 
 func (v *verifier) verifyConditions(ctx context.Context, repoRef name.Reference, desc v1.Descriptor, conditions []kyvernov1.AnyAllConditions, options ...gcrremote.Option) error {
+	v.logger.Infof("verifying conditions %s", repoRef.String())
+
 	v.engineContext.Checkpoint()
 	defer v.engineContext.Restore()
 
@@ -346,6 +348,7 @@ func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notat
 
 	desc, outcomes, err := notation.Verify(nlog, *notationVerifier, repo, opts)
 	if err != nil {
+		v.logger.Infof("Verfication failed %v", err)
 		return "", err
 	}
 
@@ -504,9 +507,7 @@ func (v *verifier) getManifestDescriptorFromReference(repo notationregistry.Repo
 }
 
 func (v *verifier) getReference(desc v1.Descriptor, ref name.Reference) string {
-
 	return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + desc.Digest.String()
-
 }
 
 func (v *verifier) getTrustPolicy(req *types.RequestData) string {

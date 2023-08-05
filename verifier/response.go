@@ -62,10 +62,7 @@ func (r *responseStruct) addAttestations(img string, att types.AttestationType) 
 		if _, ok := r.imageList[img][att.Name]; !ok {
 			r.imageList[img][att.Name] = make([]kyvernov1.AnyAllConditions, 0)
 		}
-
-		if len(att.Conditions.AllConditions) != 0 && len(att.Conditions.AnyConditions) != 0 {
-			r.imageList[img][att.Name] = append(r.imageList[img][att.Name], att.Conditions)
-		}
+		r.imageList[img][att.Name] = append(r.imageList[img][att.Name], att.Conditions)
 	} else {
 		return errors.New("Image not found in image list")
 	}

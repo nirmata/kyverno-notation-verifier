@@ -206,6 +206,8 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 }
 
 func (v *verifier) verifyConditions(ctx context.Context, repoRef name.Reference, desc v1.Descriptor, conditions []kyvernov1.AnyAllConditions, options ...gcrremote.Option) error {
+	v.logger.Infof("verifying conditions %s", repoRef.String())
+
 	v.engineContext.Checkpoint()
 	defer v.engineContext.Restore()
 

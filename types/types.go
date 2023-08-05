@@ -57,6 +57,29 @@ type Result struct {
 	Image string `json:"image"`
 }
 
+type IntermediateData struct {
+	TrustPolicy  string      `json:"trustPolicy"`
+	Images       interface{} `json:"images"`
+	Attestations []struct {
+		ImageReference string `json:"imageReference"`
+		Type           []struct {
+			Name       string `json:"name"`
+			Conditions struct {
+				All []struct {
+					Key      string `json:"key"`
+					Operator string `json:"operator"`
+					Value    string `json:"value"`
+				} `json:"all"`
+				Any []struct {
+					Key      string `json:"key"`
+					Operator string `json:"operator"`
+					Value    string `json:"value"`
+				} `json:"any"`
+			} `json:"conditions,omitempty"`
+		} `json:"type"`
+	} `json:"attestations"`
+}
+
 // Data format of request body for HandleCheckImages
 type RequestData struct {
 	// List of images in the form of kyverno's image variable

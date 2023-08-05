@@ -303,16 +303,19 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 		v.logger.Infof("Entry for the image found in cache, skipping image=%s; trustpolicy=%s", image, trustPolicy)
 		return img, nil
 	}
+
 	v.logger.Infof("verifying image infos %+v", image)
 	digest, err := v.verifyReferences(ctx, notationVerifier, image.String())
 	if err != nil {
 		v.logger.Errorf("verification failed for image %s: %v", image, err)
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
 	}
-	image.Digest = digest
+
 	if err := v.cache.AddImage(trustPolicy, image.String(), image); err != nil {
 		return nil, errors.Wrapf(err, "failed to add image to the cache %s", image)
 	}
+
+	image.Digest = digest
 	return &image, nil
 }
 

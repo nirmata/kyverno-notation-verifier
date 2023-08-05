@@ -323,6 +323,7 @@ func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notat
 
 	desc, outcomes, err := notation.Verify(nlog, *notationVerifier, repo, opts)
 	if err != nil {
+		v.logger.Infof("Verfication failed %v", err)
 		return "", err
 	}
 

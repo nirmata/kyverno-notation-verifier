@@ -62,6 +62,7 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 
 	v.cache, err = cache.New(cache.WithCacheEnabled(v.useCache), cache.WithMaxSize(v.maxCacheSize), cache.WithTTLDuration(v.maxCacheTTL))
 	if err != nil {
+		v.logger.Errorf("failed to create cache client error: %v", err)
 		return nil, errors.Wrap(err, "failed to create cache client")
 	}
 	v.logger.Info("cache created")

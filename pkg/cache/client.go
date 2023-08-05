@@ -47,8 +47,13 @@ func New(options ...Option) (Cache, error) {
 		}
 	}
 
+	if cache.maxSize == 0 {
+		cache.maxSize = 1000
+	}
 	config := &ristretto.Config{
 		NumCounters: cache.maxSize * 10,
+		MaxCost:     1 << 30,
+		BufferItems: 64,
 	}
 
 	ristretto, err := ristretto.NewCache(config)

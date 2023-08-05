@@ -22,21 +22,21 @@ func ValidateRequestData(req *types.RequestData) error {
 			}
 			for _, any := range attType.Conditions.AnyConditions {
 				if any.RawKey == nil {
-					return errors.Errorf("condtion key cannot be empty")
+					return errors.Errorf("condition key cannot be empty")
 				}
 
 				if any.RawValue == nil {
-					return errors.Errorf("condtion value cannot be empty")
+					return errors.Errorf("condition value cannot be empty")
 				}
 			}
 
 			for _, all := range attType.Conditions.AllConditions {
 				if all.RawKey == nil {
-					return errors.Errorf("condtion key cannot be empty")
+					return errors.Errorf("condition key cannot be empty")
 				}
 
 				if all.RawValue == nil {
-					return errors.Errorf("condtion value cannot be empty")
+					return errors.Errorf("condition value cannot be empty")
 				}
 			}
 		}

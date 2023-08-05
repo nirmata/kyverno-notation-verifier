@@ -81,7 +81,7 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 }
 
 func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData *types.RequestData) ([]byte, error) {
-	response := NewResponse()
+	response := NewResponse(v.logger)
 	verificationFailed := false
 	images := requestData.Images
 

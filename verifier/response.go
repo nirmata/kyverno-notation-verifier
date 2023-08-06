@@ -56,7 +56,7 @@ func (r *responseStruct) AddImage(imageRef string, img *types.ImageInfo) {
 	}
 
 	r.responseData.Results = append(r.responseData.Results, imageData)
-	r.imageList[img.String()] = make(types.AttestationList)
+	r.imageList[imageRef] = make(types.AttestationList)
 }
 
 func (r *responseStruct) addAttestations(img string, att types.AttestationType) error {

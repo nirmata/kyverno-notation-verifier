@@ -161,7 +161,7 @@ func (c *cache) AddAttestation(trustPolicy string, imageRef string, attestationT
 }
 
 func (c *cache) GetAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) bool {
-	c.log.Infof("Getting adding attestations from the cache: trustPolicy=%s, imageRef=%s, attestationType=%s, conditions=%v ", trustPolicy, imageRef, attestationType, conditions)
+	c.log.Infof("Getting attestations from the cache: trustPolicy=%s, imageRef=%s, attestationType=%s, conditions=%v ", trustPolicy, imageRef, attestationType, conditions)
 	if !c.useCache {
 		c.log.Infof("Cache is disabled not getting attestations")
 		return false

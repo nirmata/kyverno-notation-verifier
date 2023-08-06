@@ -60,7 +60,10 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	}
 	v.logger.Info("notation verifier created")
 
-	v.cache, err = cache.New(cache.WithCacheEnabled(v.useCache), cache.WithMaxSize(v.maxCacheSize), cache.WithTTLDuration(v.maxCacheTTL))
+	v.cache, err = cache.New(cache.WithCacheEnabled(v.useCache),
+		cache.WithMaxSize(v.maxCacheSize),
+		cache.WithTTLDuration(v.maxCacheTTL),
+		cache.WithLogger(logger))
 	if err != nil {
 		v.logger.Errorf("failed to create cache client error: %v", err)
 		return nil, errors.Wrap(err, "failed to create cache client")
@@ -276,7 +279,7 @@ func (v *verifier) fetchAndExtractPayload(ctx context.Context, repoRef name.Refe
 	}
 	payloadDesc := manifest.Layers[0]
 
-	layer, err := gcrremote.Layer(repoRef.Context().Digest(payloadDesc.Digest.String()))
+	layer, err := gcrremote.Layer(repoRef.Context().Digest(payloadDesc.Digest.String()), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -299,19 +302,20 @@ func (v *verifier) fetchAndExtractPayload(ctx context.Context, repoRef name.Refe
 }
 
 func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo, trustPolicy string) (*types.ImageInfo, error) {
-	if img, found := v.cache.GetImage(trustPolicy, image.String()); found {
+	imgRef := image.String()
+	if img, found := v.cache.GetImage(trustPolicy, imgRef); found {
 		v.logger.Infof("Entry for the image found in cache, skipping image=%s; trustpolicy=%s", image, trustPolicy)
 		return img, nil
 	}
 
 	v.logger.Infof("verifying image infos %+v", image)
-	digest, err := v.verifyReferences(ctx, notationVerifier, image.String())
+	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef)
 	if err != nil {
 		v.logger.Errorf("verification failed for image %s: %v", image, err)
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
 	}
 
-	if err := v.cache.AddImage(trustPolicy, image.String(), image); err != nil {
+	if err := v.cache.AddImage(trustPolicy, imgRef, image); err != nil {
 		return nil, errors.Wrapf(err, "failed to add image to the cache %s", image)
 	}
 

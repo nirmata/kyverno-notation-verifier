@@ -9,6 +9,7 @@ import (
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type Cache interface {
@@ -28,6 +29,7 @@ const (
 )
 
 type cache struct {
+	log       *zap.SugaredLogger
 	useCache  bool
 	ttl       time.Duration
 	maxSize   int64
@@ -63,6 +65,10 @@ func New(options ...Option) (Cache, error) {
 
 	cache.ristretto = ristretto
 
+	if cache.log == nil {
+		cache.log = zap.NewNop().Sugar()
+	}
+
 	return cache, nil
 }
 
@@ -87,8 +93,17 @@ func WithTTLDuration(t time.Duration) Option {
 	}
 }
 
+func WithLogger(l *zap.SugaredLogger) Option {
+	return func(c *cache) error {
+		c.log = l
+		return nil
+	}
+}
+
 func (c *cache) AddImage(trustPolicy string, imageRef string, result types.ImageInfo) error {
+	c.log.Infof("Adding image to the cache: trustPolicy=%s, imageRef=%s, result=%v", trustPolicy, imageRef, result)
 	if !c.useCache {
+		c.log.Infof("Cache is disabled not adding image")
 		return nil
 	}
 
@@ -96,17 +111,21 @@ func (c *cache) AddImage(trustPolicy string, imageRef string, result types.Image
 
 	val, err := json.Marshal(result)
 	if err != nil {
+		c.log.Errorf("could not marshal image info imageInfo=%v", result)
 		return err
 	}
 
 	if ok := c.ristretto.SetWithTTL(key, val, 0, c.ttl); !ok {
+		c.log.Errorf("could not create cache entry for key=%s", key)
 		return errors.Errorf("could not create cache entry for key=%s", key)
 	}
 	return nil
 }
 
 func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.ImageInfo, bool) {
+	c.log.Infof("Getting image from the cache: trustPolicy=%s, imageRef=%s", trustPolicy, imageRef)
 	if !c.useCache {
+		c.log.Infof("Cache is disabled not getting image")
 		return nil, false
 	}
 
@@ -114,6 +133,7 @@ func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.ImageInfo,
 	entry, ok := c.ristretto.Get(key)
 
 	if !ok {
+		c.log.Errorf("Entry not found key=%s", key)
 		return nil, false
 	}
 
@@ -125,32 +145,40 @@ func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.ImageInfo,
 }
 
 func (c *cache) AddAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) error {
+	c.log.Infof("Adding adding attestations to the cache: trustPolicy=%s, imageRef=%s, attestationType=%s, conditions=%v ", trustPolicy, imageRef, attestationType, conditions)
 	if !c.useCache {
+		c.log.Infof("Cache is disabled not adding attestations")
 		return nil
 	}
 
 	key, err := createAttestationKey(trustPolicy, imageRef, attestationType, conditions)
 	if err != nil {
+		c.log.Errorf("Failed to create key, error=%v", err.Error())
 		return err
 	}
 
 	if ok := c.ristretto.SetWithTTL(key, []byte(cacheEntry), 0, c.ttl); !ok {
+		c.log.Errorf("could not create cache entry for key=%s", key)
 		return errors.Errorf("could not create cache entry for key=%s", key)
 	}
 	return nil
 }
 
 func (c *cache) GetAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) bool {
+	c.log.Infof("Getting adding attestations from the cache: trustPolicy=%s, imageRef=%s, attestationType=%s, conditions=%v ", trustPolicy, imageRef, attestationType, conditions)
 	if !c.useCache {
+		c.log.Infof("Cache is disabled not getting attestations")
 		return false
 	}
 
 	key, err := createAttestationKey(trustPolicy, imageRef, attestationType, conditions)
 	if err != nil {
+		c.log.Errorf("Failed to create key, error=%v", err.Error())
 		return false
 	}
 	entry, found := c.ristretto.Get(key)
 	if !found || entry.(string) != cacheEntry {
+		c.log.Errorf("Entry found as invalid value")
 		return false
 	}
 	return true

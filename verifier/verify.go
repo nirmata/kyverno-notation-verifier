@@ -60,6 +60,16 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	}
 	v.logger.Info("notation verifier created")
 
+	namespace := os.Getenv("POD_NAMESPACE")
+	v.informerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(v.kubeClient, 15*time.Minute, kubeinformers.WithNamespace(namespace))
+	v.secretLister = v.informerFactory.Core().V1().Secrets().Lister().Secrets(namespace)
+	v.configMapLister = v.informerFactory.Core().V1().ConfigMaps().Lister().ConfigMaps(namespace)
+
+	for _, o := range opts {
+		o(v)
+	}
+
+	v.logger.Infof("Initializing cache cacheEnabled=%v, maxSize=%v. maxTTL=%v", v.useCache, v.maxCacheSize, v.maxCacheTTL)
 	v.cache, err = cache.New(cache.WithCacheEnabled(v.useCache),
 		cache.WithMaxSize(v.maxCacheSize),
 		cache.WithTTLDuration(v.maxCacheTTL),
@@ -69,15 +79,6 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 		return nil, errors.Wrap(err, "failed to create cache client")
 	}
 	v.logger.Info("cache created")
-
-	namespace := os.Getenv("POD_NAMESPACE")
-	v.informerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(v.kubeClient, 15*time.Minute, kubeinformers.WithNamespace(namespace))
-	v.secretLister = v.informerFactory.Core().V1().Secrets().Lister().Secrets(namespace)
-	v.configMapLister = v.informerFactory.Core().V1().ConfigMaps().Lister().ConfigMaps(namespace)
-
-	for _, o := range opts {
-		o(v)
-	}
 
 	var jp = jmespath.New(kyvernocfg.NewDefaultConfiguration(false))
 	v.engineContext = enginecontext.NewContext(jp)
@@ -204,12 +205,12 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 			v.logger.Infof("Entry for the attestation found in cache, skipping image=%s; type=%s", image, referrer.ArtifactType)
 			continue
 		}
-		// referrerRef := v.getReference(referrer, ref)
+		referrerRef := v.getReference(referrer, ref)
 
-		// _, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
-		// if err != nil {
-		// 	return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
-		// }
+		_, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
+		}
 
 		if len(conditions) != 0 {
 			if err := v.verifyConditions(ctx, ref, referrer, conditions, remoteOpts...); err != nil {

@@ -13,7 +13,7 @@ import (
 type Response interface {
 	GetResponse() types.ResponseData
 	GetImageList() map[string]types.AttestationList
-	AddImage(img *types.ImageInfo)
+	AddImage(imageRef string, img *types.ImageInfo)
 	BuildAttestationList(Attestations []types.AttestationsInfo) error
 	VerificationFailed(msg string) ([]byte, error)
 	VerificationSucceeded(msg string) ([]byte, error)
@@ -48,7 +48,7 @@ func (r *responseStruct) GetImageList() map[string]types.AttestationList {
 	return r.imageList
 }
 
-func (r *responseStruct) AddImage(img *types.ImageInfo) {
+func (r *responseStruct) AddImage(imageRef string, img *types.ImageInfo) {
 	imageData := types.Result{
 		Name:  img.Name,
 		Path:  img.Pointer,

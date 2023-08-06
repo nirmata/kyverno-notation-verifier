@@ -110,7 +110,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
 			}
-			response.AddImage(result)
+			response.AddImage(image.String(), result)
 		}
 		v.logger.Infof("verified %d containers ", images.Containers)
 	}
@@ -122,7 +122,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
 			}
-			response.AddImage(result)
+			response.AddImage(image.String(), result)
 		}
 		v.logger.Infof("verified %d initContainers", images.InitContainers)
 	}
@@ -134,7 +134,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
 			}
-			response.AddImage(result)
+			response.AddImage(image.String(), result)
 		}
 		v.logger.Infof("verified %d ephemeralContainers", images.EphemeralContainers)
 	}

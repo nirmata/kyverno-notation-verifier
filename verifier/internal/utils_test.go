@@ -245,11 +245,11 @@ func Test_RequestValidation(t *testing.T) {
 	err = json.Unmarshal([]byte(noConditionKey), &noKey)
 	assert.NilError(t, err)
 	err = ValidateRequestData(&noKey)
-	assert.Error(t, err, "condtion key cannot be empty")
+	assert.Error(t, err, "condition key cannot be empty")
 
 	err = json.Unmarshal([]byte(noConditionValue), &noValue)
 	assert.NilError(t, err)
 	err = ValidateRequestData(&noValue)
-	assert.Error(t, err, "condtion value cannot be empty")
+	assert.Error(t, err, "condition value cannot be empty")
 
 }

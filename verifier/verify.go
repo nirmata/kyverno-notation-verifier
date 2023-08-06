@@ -167,6 +167,10 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		return nil
 	}
 
+	if found := v.checkAllAttestationsForImage(trustPolicy, image, attestationList); found {
+		return nil
+	}
+
 	remoteOpts, err := v.getRemoteOpts(ctx, image)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get gcr remote opts")
@@ -532,4 +536,13 @@ func (v *verifier) getTrustPolicy(req *types.RequestData) string {
 		trustPolicy = os.Getenv(types.ENV_DEFAULT_TRUST_POLICY)
 	}
 	return trustPolicy
+}
+
+func (v *verifier) checkAllAttestationsForImage(trustPolicy string, image string, attestationList types.AttestationList) bool {
+	for attestation, condition := range attestationList {
+		if found := v.cache.GetAttestation(trustPolicy, image, attestation, condition); !found {
+			return false
+		}
+	}
+	return true
 }

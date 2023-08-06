@@ -201,10 +201,14 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 
 		conditions := attestationList[referrer.ArtifactType]
 
-		if found := v.cache.GetAttestation(trustPolicy, image, referrer.ArtifactType, conditions); found {
-			v.logger.Infof("Entry for the attestation found in cache, skipping image=%s; type=%s", image, referrer.ArtifactType)
+		found := v.cache.GetAttestation(trustPolicy, image, referrer.ArtifactType, conditions)
+
+		if found {
+			v.logger.Infof("Entry for the attestation found in cache, skipping attestation image=%s; type=%s", image, referrer.ArtifactType)
 			continue
 		}
+
+		v.logger.Infof("Entry for the attestation not found in cache, verifying attestation image=%s; type=%s", image, referrer.ArtifactType)
 		referrerRef := v.getReference(referrer, ref)
 
 		_, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
@@ -304,10 +308,13 @@ func (v *verifier) fetchAndExtractPayload(ctx context.Context, repoRef name.Refe
 
 func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo, trustPolicy string) (*types.ImageInfo, error) {
 	imgRef := image.String()
-	if img, found := v.cache.GetImage(trustPolicy, imgRef); found {
+
+	img, found := v.cache.GetImage(trustPolicy, imgRef)
+	if found || img != nil {
 		v.logger.Infof("Entry for the image found in cache, skipping image=%s; trustpolicy=%s", image, trustPolicy)
 		return img, nil
 	}
+	v.logger.Infof("Entry not found in the cache verifying img=%v", *img)
 
 	v.logger.Infof("verifying image infos %+v", image)
 	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef)

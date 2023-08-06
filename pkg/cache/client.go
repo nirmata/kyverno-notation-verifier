@@ -176,9 +176,9 @@ func (c *cache) GetAttestation(trustPolicy string, imageRef string, attestationT
 		c.log.Errorf("Failed to create key, error=%v", err.Error())
 		return false
 	}
-	entry, found := c.ristretto.Get(key)
-	if !found || entry.(string) != cacheEntry {
-		c.log.Errorf("Entry found as invalid value")
+	_, found := c.ristretto.Get(key)
+	if !found {
+		c.log.Errorf("Entry not found")
 		return false
 	}
 	return true

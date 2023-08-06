@@ -109,13 +109,7 @@ func (c *cache) AddImage(trustPolicy string, imageRef string, result types.Image
 
 	key := createImageKey(trustPolicy, imageRef)
 
-	val, err := json.Marshal(result)
-	if err != nil {
-		c.log.Errorf("could not marshal image info imageInfo=%v", result)
-		return err
-	}
-
-	if ok := c.ristretto.SetWithTTL(key, val, 0, c.ttl); !ok {
+	if ok := c.ristretto.SetWithTTL(key, result, 0, c.ttl); !ok {
 		c.log.Errorf("could not create cache entry for key=%s", key)
 		return errors.Errorf("could not create cache entry for key=%s", key)
 	}
@@ -139,8 +133,10 @@ func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.ImageInfo,
 
 	var val types.ImageInfo
 	if val, ok = entry.(types.ImageInfo); !ok {
+		c.log.Infof("Invalid in the cache %s", key)
 		return nil, false
 	}
+	c.log.Infof("Entry found in the cache %s entry=%v", key, val)
 	return &val, true
 }
 

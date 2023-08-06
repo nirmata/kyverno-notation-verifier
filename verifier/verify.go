@@ -314,7 +314,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 		v.logger.Infof("Entry for the image found in cache, skipping image=%s; trustpolicy=%s", image, trustPolicy)
 		return img, nil
 	}
-	v.logger.Infof("Entry not found in the cache verifying img=%v", *img)
+	v.logger.Infof("Entry not found in the cache verifying image=%s", imgRef)
 
 	v.logger.Infof("verifying image infos %+v", image)
 	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef)

@@ -327,11 +327,12 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
 	}
 
+	image.Digest = digest
+
 	if err := v.cache.AddImage(trustPolicy, imgRef, image); err != nil {
 		return nil, errors.Wrapf(err, "failed to add image to the cache %s", image)
 	}
 
-	image.Digest = digest
 	return &image, nil
 }
 

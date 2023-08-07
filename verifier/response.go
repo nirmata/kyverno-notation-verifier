@@ -89,6 +89,7 @@ func (r *responseStruct) VerificationFailed(msg string) ([]byte, error) {
 
 func (r *responseStruct) VerificationSucceeded(msg string) ([]byte, error) {
 	r.responseData.ErrorMessage = msg
+	r.log.Infof("Sending response result=%+v", r.responseData.Results)
 
 	data, err := json.MarshalIndent(r.responseData, "  ", "  ")
 	if err != nil {

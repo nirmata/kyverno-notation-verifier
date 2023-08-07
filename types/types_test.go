@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	v1 "github.com/kyverno/kyverno/api/kyverno/v1"
@@ -42,7 +41,7 @@ var (
           "conditions": {
             "all" : [
               {
-                "key": "creationInfo.licenseListVersion",
+                "key": "{{creationInfo.licenseListVersion}}",
                 "operator": "Equals",
                 "value":"UPDATE"
               }
@@ -54,7 +53,7 @@ var (
           "conditions": {
             "all" : [
               {
-                "key": "creationInfo.licenseListVersion",
+                "key": "{{creationInfo.licenseListVersion}}",
                 "operator": "Equals",
                 "value":"UPDATE"
               }
@@ -71,7 +70,7 @@ var (
           "conditions": {
             "all" : [
               {
-                "key":"creationInfo.licenseListVersion",
+                "key":"{{creationInfo.licenseListVersion}}",
                 "operator": "Equals",
                 "value":"UPDATE"
               }
@@ -86,9 +85,7 @@ var (
 
 func TestInput(t *testing.T) {
 	var requestData RequestData
-	b, err := processRequestData([]byte(requestBody))
-	assert.NilError(t, err)
-	err = json.Unmarshal(b, &requestData)
+	err := json.Unmarshal([]byte(requestBody), &requestData)
 	assert.NilError(t, err)
 	assert.Equal(t, requestData.TrustPolicy, "aws-trust-policy")
 	assert.Equal(t, requestData.Images.Containers["tomcat"].Name, "tomcat")
@@ -104,27 +101,4 @@ func TestInput(t *testing.T) {
 	assert.Equal(t, requestData.Attestations[0].Type[0].Conditions.AllConditions[0].Operator, v1.ConditionOperator("Equals"))
 	assert.Equal(t, requestData.Attestations[0].Type[0].Name, "sbom/cyclone-dx")
 	assert.Equal(t, requestData.Attestations[1].ImageReference, "844333597536.dkr.ecr.us-west-2.amazonaws.com/kyverno-demo:*")
-}
-
-func processRequestData(b []byte) ([]byte, error) {
-	var intermediate IntermediateData
-
-	err := json.Unmarshal(b, &intermediate)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range intermediate.Attestations {
-		for j := range intermediate.Attestations[i].Type {
-			for k := range intermediate.Attestations[i].Type[j].Conditions.Any {
-				intermediate.Attestations[i].Type[j].Conditions.Any[k].Key = fmt.Sprintf("{{%s}}", intermediate.Attestations[i].Type[j].Conditions.Any[k].Key)
-			}
-
-			for k := range intermediate.Attestations[i].Type[j].Conditions.All {
-				intermediate.Attestations[i].Type[j].Conditions.All[k].Key = fmt.Sprintf("{{%s}}", intermediate.Attestations[i].Type[j].Conditions.All[k].Key)
-			}
-		}
-	}
-
-	return json.Marshal(intermediate)
 }

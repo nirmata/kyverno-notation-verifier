@@ -3,7 +3,6 @@ package verifier
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -135,19 +134,13 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 	//err := json.NewDecoder(r.Body).Decode(&requestData)
 	raw, _ := io.ReadAll(r.Body)
 
-	raw, err := processRequestData(raw)
+	err := json.Unmarshal(raw, &requestData)
 	if err != nil {
 		v.logger.Infof("failed to decode %s: %v", string(raw), err)
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 		return
 	}
-
-	err = json.Unmarshal(raw, &requestData)
-	if err != nil {
-		v.logger.Infof("failed to decode %s: %v", string(raw), err)
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
-		return
-	}
+	v.logger.Infof("Request recieved with data=%+v", requestData)
 
 	if err := internal.ValidateRequestData(&requestData); err != nil {
 		v.logger.Infof("Missing required data: %v", err)
@@ -186,27 +179,4 @@ func (v *verifier) Stop() {
 	v.logger.Sync()
 	v.informerFactory.Shutdown()
 	v.stopCh <- struct{}{}
-}
-
-func processRequestData(b []byte) ([]byte, error) {
-	var intermediate types.IntermediateData
-
-	err := json.Unmarshal(b, &intermediate)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range intermediate.Attestations {
-		for j := range intermediate.Attestations[i].Type {
-			for k := range intermediate.Attestations[i].Type[j].Conditions.Any {
-				intermediate.Attestations[i].Type[j].Conditions.Any[k].Key = fmt.Sprintf("{{%s}}", intermediate.Attestations[i].Type[j].Conditions.Any[k].Key)
-			}
-
-			for k := range intermediate.Attestations[i].Type[j].Conditions.All {
-				intermediate.Attestations[i].Type[j].Conditions.All[k].Key = fmt.Sprintf("{{%s}}", intermediate.Attestations[i].Type[j].Conditions.All[k].Key)
-			}
-		}
-	}
-
-	return json.Marshal(intermediate)
 }

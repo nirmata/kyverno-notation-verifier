@@ -92,7 +92,7 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	return v, nil
 }
 
-func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData *types.RequestData) ([]byte, error) {
+func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData *types.RequestData) (types.ResponseData, error) {
 	response := NewResponse(v.logger)
 	verificationFailed := false
 	images := requestData.Images
@@ -140,7 +140,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	}
 
 	if err := response.BuildAttestationList(requestData.Attestations); err != nil {
-		return nil, errors.Wrapf(err, "failed to create attestation list")
+		return response.VerificationFailed(fmt.Sprintf("failed to create attestation list: %v", err.Error()))
 	}
 	v.logger.Infof("built attestation list", response.GetImageList())
 

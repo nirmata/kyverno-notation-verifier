@@ -1,8 +1,6 @@
 package verifier
 
 import (
-	"encoding/json"
-
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/types"
@@ -15,8 +13,8 @@ type Response interface {
 	GetImageList() map[string]types.AttestationList
 	AddImage(imageRef string, img *types.ImageInfo)
 	BuildAttestationList(Attestations []types.AttestationsInfo) error
-	VerificationFailed(msg string) ([]byte, error)
-	VerificationSucceeded(msg string) ([]byte, error)
+	VerificationFailed(msg string) (types.ResponseData, error)
+	VerificationSucceeded(msg string) (types.ResponseData, error)
 }
 
 type responseStruct struct {
@@ -74,28 +72,31 @@ func (r *responseStruct) addAttestations(img string, att types.AttestationType) 
 	return nil
 }
 
-func (r *responseStruct) VerificationFailed(msg string) ([]byte, error) {
+func (r *responseStruct) VerificationFailed(msg string) (types.ResponseData, error) {
 	r.log.Errorf("Verification failed with error %s", msg)
 	r.responseData.Verified = false
 	r.responseData.ErrorMessage = msg
 	r.responseData.Results = nil
 
-	data, err := json.MarshalIndent(r.responseData, "  ", "  ")
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal response")
-	}
-	return data, nil
+	return r.responseData, nil
+	// data, err := json.MarshalIndent(r.responseData, "  ", "  ")
+	// if err != nil {
+	// 	return nil, errors.Wrapf(err, "failed to marshal response")
+	// }
+	// return data, nil
 }
 
-func (r *responseStruct) VerificationSucceeded(msg string) ([]byte, error) {
+func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, error) {
 	r.responseData.ErrorMessage = msg
 	r.log.Infof("Sending response result=%+v", r.responseData.Results)
 
-	data, err := json.MarshalIndent(r.responseData, "  ", "  ")
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal response")
-	}
-	return data, nil
+	return r.responseData, nil
+
+	// data, err := json.MarshalIndent(r.responseData, "  ", "  ")
+	// if err != nil {
+	// 	return nil, errors.Wrapf(err, "failed to marshal response")
+	// }
+	// return data, nil
 }
 
 func (r *responseStruct) BuildAttestationList(Attestations []types.AttestationsInfo) error {

@@ -154,7 +154,19 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		ctx := context.Background()
-		data, err := v.verifyImagesAndAttestations(ctx, &requestData)
+
+		responseData, err := v.verifyImagesAndAttestations(ctx, &requestData)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if !responseData.Verified {
+			http.Error(w, responseData.ErrorMessage, http.StatusNotAcceptable)
+			return
+		}
+
+		data, err := json.MarshalIndent(responseData, "  ", "  ")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

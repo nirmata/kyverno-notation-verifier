@@ -76,14 +76,9 @@ func (r *responseStruct) VerificationFailed(msg string) (types.ResponseData, err
 	r.log.Errorf("Verification failed with error %s", msg)
 	r.responseData.Verified = false
 	r.responseData.ErrorMessage = msg
-	r.responseData.Results = nil
+	r.responseData.Results = make([]types.Result, 0)
 
 	return r.responseData, nil
-	// data, err := json.MarshalIndent(r.responseData, "  ", "  ")
-	// if err != nil {
-	// 	return nil, errors.Wrapf(err, "failed to marshal response")
-	// }
-	// return data, nil
 }
 
 func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, error) {
@@ -91,12 +86,6 @@ func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, 
 	r.log.Infof("Sending response result=%+v", r.responseData.Results)
 
 	return r.responseData, nil
-
-	// data, err := json.MarshalIndent(r.responseData, "  ", "  ")
-	// if err != nil {
-	// 	return nil, errors.Wrapf(err, "failed to marshal response")
-	// }
-	// return data, nil
 }
 
 func (r *responseStruct) BuildAttestationList(Attestations []types.AttestationsInfo) error {

@@ -173,7 +173,6 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !responseData.Verified {
-			w.Write(data)
 			http.Error(w, responseData.ErrorMessage, http.StatusNotAcceptable)
 			return
 		}

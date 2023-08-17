@@ -159,7 +159,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !result.Status.Authenticated || result.Status.User.Username != "system:serviceaccount:kyverno:kyverno-admission-controller" {
-		v.logger.Infof("Token is not authorized %v", *result)
+		v.logger.Infof("Token is not authorized %+v", *result)
 		http.Error(w, "Token is not authorized", http.StatusNotAcceptable)
 		return
 	}

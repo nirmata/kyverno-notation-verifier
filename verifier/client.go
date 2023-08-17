@@ -159,8 +159,8 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.Status.Authenticated {
-		v.logger.Infof("Token is not authorized %v", err)
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		v.logger.Infof("Token is not authorized %v", result.Status)
+		http.Error(w, "Token is not authorized", http.StatusNotAcceptable)
 		return
 	}
 

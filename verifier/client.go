@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -16,6 +17,8 @@ import (
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/nirmata/kyverno-notation-verifier/verifier/internal"
 	"go.uber.org/zap"
+	authv1 "k8s.io/api/authentication/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	corev1listers "k8s.io/client-go/listers/core/v1"
@@ -130,11 +133,42 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	reqToken := r.Header.Get("Authorization")
+	if len(reqToken) == 0 {
+		http.Error(w, "Authorization header not supplied", http.StatusUnauthorized)
+		return
+	}
+	splitToken := strings.Split(reqToken, "Bearer ")
+	if len(splitToken) == 0 {
+		http.Error(w, "No token provided in the header", http.StatusUnauthorized)
+		return
+	}
+	reqToken = splitToken[1]
+
+	tr := authv1.TokenReview{
+		Spec: authv1.TokenReviewSpec{
+			Token: reqToken,
+		},
+	}
+
+	result, err := v.kubeClient.AuthenticationV1().TokenReviews().Create(context.TODO(), &tr, metav1.CreateOptions{})
+	if err != nil {
+		v.logger.Infof("failed to verify auth token %v", err)
+		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		return
+	}
+
+	if result.Status.Authenticated {
+		v.logger.Infof("Token is not authorized %v", err)
+		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		return
+	}
+
 	var requestData types.RequestData
 	//err := json.NewDecoder(r.Body).Decode(&requestData)
 	raw, _ := io.ReadAll(r.Body)
 
-	err := json.Unmarshal(raw, &requestData)
+	err = json.Unmarshal(raw, &requestData)
 	if err != nil {
 		v.logger.Infof("failed to decode %s: %v", string(raw), err)
 		http.Error(w, err.Error(), http.StatusNotAcceptable)

@@ -47,38 +47,34 @@ type ImageInfos struct {
 	EphemeralContainers map[string]ImageInfo `json:"ephemeralContainers,omitempty"`
 }
 
-type IntermediateData struct {
-	TrustPolicy  string      `json:"trustPolicy"`
-	Images       interface{} `json:"images"`
-	Attestations []struct {
-		ImageReference string `json:"imageReference"`
-		Type           []struct {
-			Name       string `json:"name"`
-			Conditions struct {
-				All []struct {
-					Key      string `json:"key"`
-					Operator string `json:"operator"`
-					Value    string `json:"value"`
-				} `json:"all"`
-				Any []struct {
-					Key      string `json:"key"`
-					Operator string `json:"operator"`
-					Value    string `json:"value"`
-				} `json:"any"`
-			} `json:"conditions,omitempty"`
-		} `json:"type"`
-	} `json:"attestations"`
-}
-
 // Data format of request body for HandleCheckImages
 type RequestData struct {
 	// List of images in the form of kyverno's image variable
 	Images ImageInfos `json:"images"`
 
+	// TrustPolicy specifies the name of the trust policy to be used for this specific request
 	TrustPolicy string `json:"trustPolicy"`
 
 	// List of image regex and attestations
 	Attestations []AttestationsInfo `json:"attestations"`
+
+	// Metadata is the current value of kyverno-notation-aws.io/verify-images annotation
+	Metadata string `json:"metadata"`
+}
+
+// VerificationRequest is the data sent to verifier after processed from HandleCheckImages request
+type VerificationRequest struct {
+	// List of images in the form of kyverno's image variable
+	Images ImageInfos `json:"images"`
+
+	// TrustPolicy specifies the name of the trust policy to be used for this specific request
+	TrustPolicy string `json:"trustPolicy"`
+
+	// List of image regex and attestations
+	Attestations []AttestationsInfo `json:"attestations"`
+
+	// Metadata is the current value of kyverno-notation-aws.io/verify-images annotation
+	Metadata map[string]bool `json:"metadata"`
 }
 
 // Data format of response body for HandleCheckImages

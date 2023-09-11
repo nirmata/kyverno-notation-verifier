@@ -234,22 +234,22 @@ func Test_RequestValidation(t *testing.T) {
 
 	err := json.Unmarshal([]byte(noImagesRequest), &noImages)
 	assert.NilError(t, err)
-	err = ValidateRequestData(&noImages)
+	_, err = ProcessRequestData(&noImages)
 	assert.Error(t, err, "atleast one image must be provided")
 
 	err = json.Unmarshal([]byte(noAttestationName), &noAttestations)
 	assert.NilError(t, err)
-	err = ValidateRequestData(&noAttestations)
+	_, err = ProcessRequestData(&noAttestations)
 	assert.Error(t, err, "attestation name cannot be empty")
 
 	err = json.Unmarshal([]byte(noConditionKey), &noKey)
 	assert.NilError(t, err)
-	err = ValidateRequestData(&noKey)
+	_, err = ProcessRequestData(&noKey)
 	assert.Error(t, err, "condition key cannot be empty")
 
 	err = json.Unmarshal([]byte(noConditionValue), &noValue)
 	assert.NilError(t, err)
-	err = ValidateRequestData(&noValue)
+	_, err = ProcessRequestData(&noValue)
 	assert.Error(t, err, "condition value cannot be empty")
 
 }

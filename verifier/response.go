@@ -1,6 +1,8 @@
 package verifier
 
 import (
+	"encoding/json"
+
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/types"
@@ -22,9 +24,10 @@ type responseStruct struct {
 	log          *zap.SugaredLogger
 	imageList    map[string]types.AttestationList
 	responseData types.ResponseData
+	ivm          ImageVerifierMetatdata
 }
 
-func NewResponse(log *zap.SugaredLogger) Response {
+func NewResponse(log *zap.SugaredLogger, ivm ImageVerifierMetatdata) Response {
 	imageList := make(map[string]types.AttestationList)
 
 	responseData := types.ResponseData{
@@ -36,6 +39,7 @@ func NewResponse(log *zap.SugaredLogger) Response {
 		log:          log,
 		imageList:    imageList,
 		responseData: responseData,
+		ivm:          ivm,
 	}
 }
 
@@ -53,6 +57,8 @@ func (r *responseStruct) AddImage(imageRef string, img *types.ImageInfo) {
 		Path:      img.Pointer,
 		Value:     img.String(),
 	}
+
+	r.ivm.Add(img.String(), true)
 
 	r.responseData.Results = append(r.responseData.Results, imageData)
 	r.imageList[imageRef] = make(types.AttestationList)
@@ -85,6 +91,19 @@ func (r *responseStruct) VerificationFailed(msg string) (types.ResponseData, err
 func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, error) {
 	r.responseData.ErrorMessage = msg
 	r.log.Infof("Sending response result=%+v", r.responseData.Results)
+
+	annotationValue, err := json.Marshal(r.ivm.GetAnnotation())
+	if err != nil {
+		return r.responseData, err
+	}
+
+	annotatationPatch := jsonpatch.JsonPatchOperation{
+		Operation: "replace",
+		Path:      makeAnnotationKeyForJSONPatch(),
+		Value:     string(annotationValue),
+	}
+
+	r.responseData.Results = append(r.responseData.Results, annotatationPatch)
 
 	return r.responseData, nil
 }

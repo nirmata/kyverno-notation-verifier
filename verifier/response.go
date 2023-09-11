@@ -2,7 +2,6 @@ package verifier
 
 import (
 	"encoding/json"
-	"fmt"
 
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/kyverno/kyverno/pkg/utils/wildcard"
@@ -33,7 +32,7 @@ func NewResponse(log *zap.SugaredLogger, ivm ImageVerifierMetatdata) Response {
 
 	responseData := types.ResponseData{
 		Verified: true,
-		Results:  make([]jsonpatch.JsonPatchOperation, 0),
+		Results:  make([]jsonpatch.Operation, 0),
 	}
 
 	return &responseStruct{
@@ -53,7 +52,7 @@ func (r *responseStruct) GetImageList() map[string]types.AttestationList {
 }
 
 func (r *responseStruct) AddImage(imageRef string, img *types.ImageInfo) {
-	imageData := jsonpatch.JsonPatchOperation{
+	imageData := jsonpatch.Operation{
 		Operation: "replace",
 		Path:      img.Pointer,
 		Value:     img.String(),
@@ -84,28 +83,28 @@ func (r *responseStruct) VerificationFailed(msg string) (types.ResponseData, err
 	r.log.Errorf("Verification failed with error %s", msg)
 	r.responseData.Verified = false
 	r.responseData.ErrorMessage = msg
-	r.responseData.Results = make([]jsonpatch.JsonPatchOperation, 0)
+	r.responseData.Results = make([]jsonpatch.Operation, 0)
 
 	return r.responseData, nil
 }
 
 func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, error) {
 	r.responseData.ErrorMessage = msg
-	r.log.Infof("Sending response result=%+v", r.responseData.Results)
 
 	annotationValue, err := json.Marshal(r.ivm.GetAnnotation())
 	if err != nil {
 		return r.responseData, err
 	}
 
-	annotatationPatch := jsonpatch.JsonPatchOperation{
+	annotatationPatch := jsonpatch.Operation{
 		Operation: r.ivm.GetJSONPatchOperation(),
 		Path:      r.ivm.GetAnnotationKeyForJSONPatch(),
-		Value:     fmt.Sprintf("\"%s\"", string(annotationValue)),
+		Value:     string(annotationValue),
 	}
 
 	r.responseData.Results = append(r.responseData.Results, annotatationPatch)
 
+	r.log.Infof("Sending response result=%+v", r.responseData.Results)
 	return r.responseData, nil
 }
 

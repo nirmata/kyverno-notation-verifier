@@ -17,6 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.24.0
+	gomodules.xyz/jsonpatch/v2 v2.4.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
@@ -239,7 +240,6 @@ require (
 	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
-	gomodules.xyz/jsonpatch/v2 v2.3.0 // indirect
 	google.golang.org/api v0.115.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230403163135-c38d8f061ccd // indirect

@@ -3,6 +3,7 @@ package types
 import (
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	imageutils "github.com/kyverno/kyverno/pkg/utils/image"
+	"gomodules.xyz/jsonpatch/v2"
 )
 
 var (
@@ -44,17 +45,6 @@ type ImageInfos struct {
 
 	// EphemeralContainers is a map of ephemeral containers image data from the AdmissionReview request, key is the container name
 	EphemeralContainers map[string]ImageInfo `json:"ephemeralContainers,omitempty"`
-}
-
-type Result struct {
-	// Name of the container
-	Name string `json:"name"`
-
-	// Path to the image object in the resource
-	Path string `json:"path"`
-
-	// Updated image with the digest
-	Image string `json:"image"`
 }
 
 type IntermediateData struct {
@@ -102,7 +92,7 @@ type ResponseData struct {
 
 	// Results contains the list of containers in JSONPatch format
 	// Results is empty when verification fails
-	Results []Result `json:"results"`
+	Results []jsonpatch.JsonPatchOperation `json:"results"`
 }
 
 type AttestationList map[string][]kyvernov1.AnyAllConditions

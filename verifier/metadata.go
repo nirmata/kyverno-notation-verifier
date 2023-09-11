@@ -5,13 +5,16 @@ import (
 )
 
 type imageVerifierMetatdata struct {
-	annotation map[string]bool
+	annotation    map[string]bool
+	initialLength int
 }
 
 type ImageVerifierMetatdata interface {
 	Add(image string, value bool)
 	GetAnnotation() map[string]bool
 	IsVerified(image string) bool
+	GetJSONPatchOperation() string
+	GetAnnotationKeyForJSONPatch() string
 }
 
 func NewImageVerifierMetatdata(annotation map[string]bool) ImageVerifierMetatdata {
@@ -20,7 +23,8 @@ func NewImageVerifierMetatdata(annotation map[string]bool) ImageVerifierMetatdat
 	}
 
 	return &imageVerifierMetatdata{
-		annotation: annotation,
+		annotation:    annotation,
+		initialLength: len(annotation),
 	}
 }
 
@@ -34,6 +38,14 @@ func (ivm *imageVerifierMetatdata) GetAnnotation() map[string]bool {
 	return ivm.annotation
 }
 
+func (ivm *imageVerifierMetatdata) GetJSONPatchOperation() string {
+	if ivm.initialLength == 0 {
+		return "add"
+	} else {
+		return "replace"
+	}
+}
+
 func (ivm *imageVerifierMetatdata) IsVerified(image string) bool {
 	if ivm.annotation == nil {
 		return false
@@ -45,6 +57,6 @@ func (ivm *imageVerifierMetatdata) IsVerified(image string) bool {
 	return verified
 }
 
-func makeAnnotationKeyForJSONPatch() string {
+func (ivm *imageVerifierMetatdata) GetAnnotationKeyForJSONPatch() string {
 	return "/metadata/annotations/" + strings.ReplaceAll("kyverno-notation-aws.io/verify-images", "/", "~1")
 }

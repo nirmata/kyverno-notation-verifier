@@ -13,7 +13,7 @@ type ImageVerifierMetatdata interface {
 	Add(image string, value bool)
 	GetAnnotation() map[string]bool
 	IsVerified(image string) bool
-	GetJSONPatchOperation() string
+	GetOperation() string
 	GetAnnotationKeyForJSONPatch() string
 }
 
@@ -38,7 +38,7 @@ func (ivm *imageVerifierMetatdata) GetAnnotation() map[string]bool {
 	return ivm.annotation
 }
 
-func (ivm *imageVerifierMetatdata) GetJSONPatchOperation() string {
+func (ivm *imageVerifierMetatdata) GetOperation() string {
 	if ivm.initialLength == 0 {
 		return "add"
 	} else {

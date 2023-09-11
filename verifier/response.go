@@ -32,7 +32,7 @@ func NewResponse(log *zap.SugaredLogger, ivm ImageVerifierMetatdata) Response {
 
 	responseData := types.ResponseData{
 		Verified: true,
-		Results:  make([]jsonpatch.JsonPatchOperation, 0),
+		Results:  make([]jsonpatch.Operation, 0),
 	}
 
 	return &responseStruct{
@@ -52,7 +52,7 @@ func (r *responseStruct) GetImageList() map[string]types.AttestationList {
 }
 
 func (r *responseStruct) AddImage(imageRef string, img *types.ImageInfo) {
-	imageData := jsonpatch.JsonPatchOperation{
+	imageData := jsonpatch.Operation{
 		Operation: "replace",
 		Path:      img.Pointer,
 		Value:     img.String(),
@@ -83,7 +83,7 @@ func (r *responseStruct) VerificationFailed(msg string) (types.ResponseData, err
 	r.log.Errorf("Verification failed with error %s", msg)
 	r.responseData.Verified = false
 	r.responseData.ErrorMessage = msg
-	r.responseData.Results = make([]jsonpatch.JsonPatchOperation, 0)
+	r.responseData.Results = make([]jsonpatch.Operation, 0)
 
 	return r.responseData, nil
 }
@@ -91,13 +91,15 @@ func (r *responseStruct) VerificationFailed(msg string) (types.ResponseData, err
 func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, error) {
 	r.responseData.ErrorMessage = msg
 
+	// for testing
+	r.responseData.Results = make([]jsonpatch.Operation, 0)
 	annotationValue, err := json.Marshal(r.ivm.GetAnnotation())
 	if err != nil {
 		return r.responseData, err
 	}
 
-	annotatationPatch := jsonpatch.JsonPatchOperation{
-		Operation: r.ivm.GetJSONPatchOperation(),
+	annotatationPatch := jsonpatch.Operation{
+		Operation: r.ivm.GetOperation(),
 		Path:      r.ivm.GetAnnotationKeyForJSONPatch(),
 		Value:     string(annotationValue),
 	}

@@ -88,7 +88,7 @@ type ResponseData struct {
 
 	// Results contains the list of containers in JSONPatch format
 	// Results is empty when verification fails
-	Results []jsonpatch.JsonPatchOperation `json:"results"`
+	Results []jsonpatch.Operation `json:"results"`
 }
 
 type AttestationList map[string][]kyvernov1.AnyAllConditions

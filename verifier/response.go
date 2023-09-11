@@ -2,7 +2,6 @@ package verifier
 
 import (
 	"encoding/json"
-	"fmt"
 
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/kyverno/kyverno/pkg/utils/wildcard"
@@ -100,7 +99,7 @@ func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, 
 	annotatationPatch := jsonpatch.JsonPatchOperation{
 		Operation: r.ivm.GetJSONPatchOperation(),
 		Path:      r.ivm.GetAnnotationKeyForJSONPatch(),
-		Value:     fmt.Sprintf("\"%s\"", string(annotationValue)),
+		Value:     string(annotationValue),
 	}
 
 	r.responseData.Results = append(r.responseData.Results, annotatationPatch)

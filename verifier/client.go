@@ -187,20 +187,21 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 	}
 	v.logger.Infof("Request recieved with data=%+v", requestData)
 
-	if err := internal.ValidateRequestData(&requestData); err != nil {
+	var verificationPayload *types.VerificationRequest
+	if verificationPayload, err = internal.ProcessRequestData(&requestData); err != nil {
 		v.logger.Infof("Missing required data: %v", err)
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 		return
 	}
 
-	if reflect.ValueOf(requestData.Images).IsZero() {
+	if reflect.ValueOf(verificationPayload.Images).IsZero() {
 		v.logger.Infof("images variable not found")
 		http.Error(w, "missing required parameter 'images'", http.StatusNotAcceptable)
 		return
 	} else {
 		ctx := context.Background()
 
-		responseData, err := v.verifyImagesAndAttestations(ctx, &requestData)
+		responseData, err := v.verifyImagesAndAttestations(ctx, verificationPayload)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

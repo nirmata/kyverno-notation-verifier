@@ -92,8 +92,9 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	return v, nil
 }
 
-func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData *types.RequestData) (types.ResponseData, error) {
-	response := NewResponse(v.logger)
+func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData *types.VerificationRequest) (types.ResponseData, error) {
+	ivm := NewImageVerifierMetatdata(requestData.Metadata)
+	response := NewResponse(v.logger, ivm)
 	verificationFailed := false
 	images := requestData.Images
 
@@ -105,6 +106,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.Containers {
+			if ivm.IsVerified(image.String()) {
+				continue
+			}
+
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
@@ -117,6 +122,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.InitContainers {
+			if ivm.IsVerified(image.String()) {
+				continue
+			}
+
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
@@ -129,6 +138,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.EphemeralContainers {
+			if ivm.IsVerified(image.String()) {
+				continue
+			}
+
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
@@ -531,7 +544,7 @@ func (v *verifier) getReference(desc v1.Descriptor, ref name.Reference) string {
 	return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + desc.Digest.String()
 }
 
-func (v *verifier) getTrustPolicy(req *types.RequestData) string {
+func (v *verifier) getTrustPolicy(req *types.VerificationRequest) string {
 	trustPolicy := req.TrustPolicy
 	if len(trustPolicy) == 0 {
 		trustPolicy = os.Getenv(types.ENV_DEFAULT_TRUST_POLICY)

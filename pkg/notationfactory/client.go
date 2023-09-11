@@ -21,7 +21,7 @@ type NotationVeriferFactory interface {
 	RefreshVerifiers() error
 
 	// GetVerifier returns a verifier based on the trust policy in request or the default trustpolicy in trust policy env
-	GetVerifier(requestData *types.RequestData) (*notation.Verifier, error)
+	GetVerifier(requestData *types.VerificationRequest) (*notation.Verifier, error)
 }
 
 func NewNotationVerifierFactory(logger *zap.SugaredLogger) NotationVeriferFactory {
@@ -79,7 +79,7 @@ func (f *notationverifierfactory) RefreshVerifiers() error {
 	return nil
 }
 
-func (f *notationverifierfactory) GetVerifier(requestData *types.RequestData) (*notation.Verifier, error) {
+func (f *notationverifierfactory) GetVerifier(requestData *types.VerificationRequest) (*notation.Verifier, error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 

@@ -98,8 +98,8 @@ func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, 
 	}
 
 	annotatationPatch := jsonpatch.JsonPatchOperation{
-		Operation: "replace",
-		Path:      makeAnnotationKeyForJSONPatch(),
+		Operation: r.ivm.GetJSONPatchOperation(),
+		Path:      r.ivm.GetAnnotationKeyForJSONPatch(),
 		Value:     string(annotationValue),
 	}
 

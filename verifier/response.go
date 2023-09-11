@@ -91,7 +91,6 @@ func (r *responseStruct) VerificationFailed(msg string) (types.ResponseData, err
 
 func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, error) {
 	r.responseData.ErrorMessage = msg
-	r.log.Infof("Sending response result=%+v", r.responseData.Results)
 
 	annotationValue, err := json.Marshal(r.ivm.GetAnnotation())
 	if err != nil {
@@ -106,6 +105,7 @@ func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, 
 
 	r.responseData.Results = append(r.responseData.Results, annotatationPatch)
 
+	r.log.Infof("Sending response result=%+v", r.responseData.Results)
 	return r.responseData, nil
 }
 

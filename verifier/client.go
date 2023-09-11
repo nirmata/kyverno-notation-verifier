@@ -223,6 +223,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		v.logger.Infof("Sending response %s", string(data))
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
 	}

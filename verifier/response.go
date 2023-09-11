@@ -1,6 +1,8 @@
 package verifier
 
 import (
+	"encoding/json"
+
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/types"
@@ -89,18 +91,18 @@ func (r *responseStruct) VerificationFailed(msg string) (types.ResponseData, err
 func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, error) {
 	r.responseData.ErrorMessage = msg
 
-	// annotationValue, err := json.Marshal(r.ivm.GetAnnotation())
-	// if err != nil {
-	// 	return r.responseData, err
-	// }
+	annotationValue, err := json.Marshal(r.ivm.GetAnnotation())
+	if err != nil {
+		return r.responseData, err
+	}
 
-	// annotatationPatch := jsonpatch.Operation{
-	// 	Operation: r.ivm.GetOperation(),
-	// 	Path:      r.ivm.GetAnnotationKeyForJSONPatch(),
-	// 	Value:     string(annotationValue),
-	// }
+	annotatationPatch := jsonpatch.Operation{
+		Operation: r.ivm.GetOperation(),
+		Path:      r.ivm.GetAnnotationKeyForJSONPatch(),
+		Value:     string(annotationValue),
+	}
 
-	// r.responseData.Results = append(r.responseData.Results, annotatationPatch)
+	r.responseData.Results = append(r.responseData.Results, annotatationPatch)
 
 	r.log.Infof("Sending response result=%+v", r.responseData.Results)
 	return r.responseData, nil

@@ -97,7 +97,7 @@ func (r *responseStruct) VerificationSucceeded(msg string) (types.ResponseData, 
 	}
 
 	annotatationPatch := jsonpatch.Operation{
-		Operation: r.ivm.GetOperation(),
+		Operation: r.ivm.GetJSONPatchOperation(),
 		Path:      r.ivm.GetAnnotationKeyForJSONPatch(),
 		Value:     string(annotationValue),
 	}

@@ -106,11 +106,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.Containers {
-			if ivm.IsVerified(image.String()) {
-				continue
-			}
-
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
@@ -122,11 +118,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.InitContainers {
-			if ivm.IsVerified(image.String()) {
-				continue
-			}
-
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
@@ -138,11 +130,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.EphemeralContainers {
-			if ivm.IsVerified(image.String()) {
-				continue
-			}
-
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image, v.getTrustPolicy(requestData))
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
@@ -157,24 +145,24 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	}
 	v.logger.Infof("built attestation list", response.GetImageList())
 
-	if err := v.verifyAttestations(ctx, notationVerifier, response, v.getTrustPolicy(requestData)); err != nil {
+	if err := v.verifyAttestations(ctx, notationVerifier, response, ivm, v.getTrustPolicy(requestData)); err != nil {
 		return response.VerificationFailed(fmt.Sprintf("failed to verify attestatations: %v", err.Error()))
 	}
 
 	return response.VerificationSucceeded("")
 }
 
-func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *notation.Verifier, response Response, trustPolicy string) error {
+func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *notation.Verifier, response Response, ivm ImageVerifierMetatdata, trustPolicy string) error {
 	v.logger.Infof("verifying attestations %v", response.GetImageList())
 	for image, list := range response.GetImageList() {
-		if err := v.verifyAttestation(ctx, notationVerifier, image, list, trustPolicy); err != nil {
+		if err := v.verifyAttestation(ctx, notationVerifier, image, list, ivm, trustPolicy); err != nil {
 			return errors.Wrapf(err, "failed to verify attestations")
 		}
 	}
 	return nil
 }
 
-func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *notation.Verifier, image string, attestationList types.AttestationList, trustPolicy string) error {
+func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *notation.Verifier, image string, attestationList types.AttestationList, ivm ImageVerifierMetatdata, trustPolicy string) error {
 	v.logger.Infof("verifying attestation, image=%s; attestations=%v", image, attestationList)
 	if len(attestationList) == 0 {
 		return nil
@@ -226,11 +214,16 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		}
 
 		v.logger.Infof("Entry for the attestation not found in cache, verifying attestation image=%s; type=%s", image, referrer.ArtifactType)
-		referrerRef := v.getReference(referrer, ref)
+		referrerRef := v.getReference(referrer.Digest.String(), ref)
 
-		_, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
+		if ivm.IsVerified(referrerRef) {
+			v.logger.Infof("Reference present in the annotation, skipping %s", referrerRef)
+		} else {
+			digest, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
+			}
+			ivm.Add(v.getReference(digest, ref), true)
 		}
 
 		if len(conditions) != 0 {
@@ -323,8 +316,12 @@ func (v *verifier) fetchAndExtractPayload(ctx context.Context, repoRef name.Refe
 	return predicate, nil
 }
 
-func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo, trustPolicy string) (*types.ImageInfo, error) {
+func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo, ivm ImageVerifierMetatdata, trustPolicy string) (*types.ImageInfo, error) {
 	imgRef := image.String()
+	if ivm.IsVerified(imgRef) && isDigestReference(imgRef) {
+		v.logger.Infof("Reference present in the annotation, skipping %s", imgRef)
+		return &image, nil
+	}
 
 	img, found := v.cache.GetImage(trustPolicy, imgRef)
 	if found || img != nil {
@@ -341,6 +338,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	}
 
 	image.Digest = digest
+	ivm.Add(image.String(), true)
 
 	if err := v.cache.AddImage(trustPolicy, imgRef, image); err != nil {
 		return nil, errors.Wrapf(err, "failed to add image to the cache %s", image)
@@ -540,8 +538,8 @@ func (v *verifier) getManifestDescriptorFromReference(repo notationregistry.Repo
 	return repo.Resolve(context.Background(), ref.ReferenceOrDefault())
 }
 
-func (v *verifier) getReference(desc v1.Descriptor, ref name.Reference) string {
-	return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + desc.Digest.String()
+func (v *verifier) getReference(digest string, ref name.Reference) string {
+	return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + digest
 }
 
 func (v *verifier) getTrustPolicy(req *types.VerificationRequest) string {

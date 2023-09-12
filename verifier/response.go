@@ -58,8 +58,6 @@ func (r *responseStruct) AddImage(imageRef string, img *types.ImageInfo) {
 		Value:     img.String(),
 	}
 
-	r.ivm.Add(img.String(), true)
-
 	r.responseData.Results = append(r.responseData.Results, imageData)
 	r.imageList[imageRef] = make(types.AttestationList)
 }

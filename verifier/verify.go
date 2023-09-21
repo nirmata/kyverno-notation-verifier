@@ -209,6 +209,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		found := v.cache.GetAttestation(trustPolicy, image, referrer.ArtifactType, conditions)
 
 		if found {
+			ivm.Add(v.getReference(referrer.Digest.String(), ref), true)
 			v.logger.Infof("Entry for the attestation found in cache, skipping attestation image=%s; type=%s", image, referrer.ArtifactType)
 			continue
 		}
@@ -325,6 +326,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 
 	img, found := v.cache.GetImage(trustPolicy, imgRef)
 	if found || img != nil {
+		ivm.Add(image.String(), true)
 		v.logger.Infof("Entry for the image found in cache, skipping image=%s; trustpolicy=%s", image, trustPolicy)
 		return img, nil
 	}

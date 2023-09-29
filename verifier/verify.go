@@ -422,7 +422,7 @@ func (v *verifier) getRemoteOpts(ctx context.Context, ref string) ([]gcrremote.O
 		return nil, errors.Wrapf(err, "failed to retrieve credentials")
 	}
 
-	authenticator := authn.FromConfig(authConfig)
+	authenticator := authn.FromConfig(*authConfig)
 
 	remoteOpts := []gcrremote.Option{}
 	remoteOpts = append(remoteOpts, gcrremote.WithAuth(authenticator))
@@ -482,6 +482,10 @@ func (v *verifier) getAuthClient(ctx context.Context, ref registry.Reference) (*
 	authConfig, err := v.getAuthConfig(ctx, ref)
 	if err != nil {
 		return nil, false, err
+	}
+
+	if authConfig == nil {
+		return nil, false, nil
 	}
 
 	credentials := auth.Credential{

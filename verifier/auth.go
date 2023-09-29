@@ -11,21 +11,21 @@ import (
 	"oras.land/oras-go/v2/registry"
 )
 
-func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (authn.AuthConfig, error) {
+func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (*authn.AuthConfig, error) {
 	if v.imagePullSecrets != "" {
 		return v.getAuthFromSecret(ctx, ref)
 	}
 
-	if v.providerAuthConfigResolver == nil {
-		return authn.AuthConfig{}, errors.New("AUTHENTICATION ERROR: authentication failed, no secret or auth config resolver provided")
+	if v.providerAuthConfigResolver != nil {
+		return v.providerAuthConfigResolver(ctx, ref)
 	}
 
-	return v.providerAuthConfigResolver(ctx, ref)
+	return nil, nil
 }
 
-func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference) (authn.AuthConfig, error) {
+func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference) (*authn.AuthConfig, error) {
 	if v.imagePullSecrets == "" {
-		return authn.AuthConfig{}, errors.Errorf("secret not configured")
+		return nil, errors.Errorf("secret not configured")
 	}
 
 	v.logger.Infof("fetching credentials from secret %s...", v.imagePullSecrets)
@@ -33,7 +33,7 @@ func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference
 	for _, imagePullSecret := range strings.Split(v.imagePullSecrets, ",") {
 		secret, err := v.secretLister.Get(imagePullSecret)
 		if err != nil {
-			return authn.AuthConfig{}, err
+			return nil, err
 		}
 
 		secrets = append(secrets, *secret)
@@ -41,20 +41,20 @@ func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference
 
 	keychain, err := kauth.NewFromPullSecrets(ctx, secrets)
 	if err != nil {
-		return authn.AuthConfig{}, err
+		return nil, err
 	}
 
 	authenticator, err := keychain.Resolve(&imageResource{ref})
 	if err != nil {
-		return authn.AuthConfig{}, err
+		return nil, err
 	}
 
 	authConfig, err := authenticator.Authorization()
 	if err != nil {
-		return authn.AuthConfig{}, errors.Wrapf(err, "failed to get auth config for %s", ref.String())
+		return nil, errors.Wrapf(err, "failed to get auth config for %s", ref.String())
 	}
 
-	return *authConfig, nil
+	return authConfig, nil
 }
 
 type imageResource struct {

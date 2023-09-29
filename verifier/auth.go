@@ -20,7 +20,12 @@ func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (*
 		return v.providerAuthConfigResolver(ctx, ref)
 	}
 
-	return nil, nil
+	authConfig, err := authn.Anonymous.Authorization()
+	if err != nil {
+		return nil, err
+	}
+
+	return authConfig, nil
 }
 
 func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference) (*authn.AuthConfig, error) {

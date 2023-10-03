@@ -41,7 +41,7 @@ type verifier struct {
 	informerFactory            kubeinformers.SharedInformerFactory
 	secretLister               corev1listers.SecretNamespaceLister
 	configMapLister            corev1listers.ConfigMapNamespaceLister
-	providerAuthConfigResolver func(context.Context, registry.Reference) (authn.AuthConfig, error)
+	providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)
 	imagePullSecrets           string
 	insecureRegistry           bool
 	pluginConfigMap            string
@@ -112,7 +112,7 @@ func WithEnableDebug(debug bool) verifierOptsFunc {
 	}
 }
 
-func WithProviderAuthConfigResolver(providerAuthConfigResolver func(context.Context, registry.Reference) (authn.AuthConfig, error)) verifierOptsFunc {
+func WithProviderAuthConfigResolver(providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)) verifierOptsFunc {
 	return func(v *verifier) {
 		v.providerAuthConfigResolver = providerAuthConfigResolver
 	}

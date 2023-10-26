@@ -42,6 +42,7 @@ type verifier struct {
 	secretLister               corev1listers.SecretNamespaceLister
 	configMapLister            corev1listers.ConfigMapNamespaceLister
 	providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)
+	imageFilterFunction        func(image string) bool
 	imagePullSecrets           string
 	insecureRegistry           bool
 	pluginConfigMap            string
@@ -115,6 +116,12 @@ func WithEnableDebug(debug bool) verifierOptsFunc {
 func WithProviderAuthConfigResolver(providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)) verifierOptsFunc {
 	return func(v *verifier) {
 		v.providerAuthConfigResolver = providerAuthConfigResolver
+	}
+}
+
+func WithImageFilterFunction(imageFilterFunction func(image string) bool) verifierOptsFunc {
+	return func(v *verifier) {
+		v.imageFilterFunction = imageFilterFunction
 	}
 }
 

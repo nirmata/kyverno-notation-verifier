@@ -106,10 +106,6 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.Containers {
-			if v.imageFilterFunction != nil && !v.imageFilterFunction(image.String()) {
-				v.logger.Infof("skipping as the image is filtered out: %s", image.String())
-				continue
-			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
@@ -122,10 +118,6 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.InitContainers {
-			if v.imageFilterFunction != nil && !v.imageFilterFunction(image.String()) {
-				v.logger.Infof("skipping as the image is filtered out: %s", image.String())
-				continue
-			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
@@ -138,10 +130,6 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.EphemeralContainers {
-			if v.imageFilterFunction != nil && !v.imageFilterFunction(image.String()) {
-				v.logger.Infof("skipping as the image is filtered out: %s", image.String())
-				continue
-			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
@@ -232,11 +220,11 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		if ivm.IsVerified(referrerRef) {
 			v.logger.Infof("Reference present in the annotation, skipping %s", referrerRef)
 		} else {
-			err := v.verifyReferences(ctx, notationVerifier, referrerRef)
+			digest, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
 			}
-			ivm.Add(referrerRef, true)
+			ivm.Add(v.getReference(digest, ref), true)
 		}
 
 		if len(conditions) != 0 {
@@ -344,20 +332,14 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	}
 	v.logger.Infof("Entry not found in the cache verifying image=%s", imgRef)
 
-	digest, err := v.getDigest(ctx, imgRef)
-	if err != nil {
-		v.logger.Infof("Failed to resolve digest %s error: %s", imgRef, err.Error())
-		return nil, errors.Wrapf(err, "failed to resolve image digest %s", image.String())
-	}
-	image.Digest = digest
-
 	v.logger.Infof("verifying image infos %+v", image)
-	err = v.verifyReferences(ctx, notationVerifier, imgRef)
+	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef)
 	if err != nil {
 		v.logger.Errorf("verification failed for image %s: %v", image, err)
-		return &image, errors.Wrapf(err, "failed to verify image %s", image.String())
+		return nil, errors.Wrapf(err, "failed to verify image %s", image)
 	}
 
+	image.Digest = digest
 	ivm.Add(image.String(), true)
 
 	if err := v.cache.AddImage(trustPolicy, imgRef, image); err != nil {
@@ -367,18 +349,18 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	return &image, nil
 }
 
-func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notation.Verifier, image string) error {
+func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notation.Verifier, image string) (string, error) {
 	v.logger.Infof("verifying image %s", image)
 	repo, reference, err := v.parseReferenceAndResolveDigest(ctx, image)
 	if err != nil {
-		return errors.Wrapf(err, "failed to resolve digest")
+		return "", errors.Wrapf(err, "failed to resolve digest")
 	}
 
 	pluginConfig := map[string]string{}
 	if v.pluginConfigMap != "" {
 		cm, err := v.configMapLister.Get(v.pluginConfigMap)
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch plugin configmap %s", v.pluginConfigMap)
+			return "", errors.Wrapf(err, "failed to fetch plugin configmap %s", v.pluginConfigMap)
 		}
 
 		for k, v := range cm.Data {
@@ -401,7 +383,7 @@ func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notat
 	desc, outcomes, err := notation.Verify(nlog, *notationVerifier, repo, opts)
 	if err != nil {
 		v.logger.Infof("Verfication failed %v", err)
-		return err
+		return "", err
 	}
 
 	var errs []error
@@ -413,12 +395,12 @@ func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notat
 
 	if len(errs) > 0 {
 		err := multierr.Combine(errs...)
-		return err
+		return "", err
 	}
 
 	v.logger.Infof("successfully verified image %s digest %s", image, desc.Digest.String())
 
-	return nil
+	return desc.Digest.String(), nil
 }
 
 func (v *verifier) getRemoteOpts(ctx context.Context, ref string) ([]gcrremote.Option, error) {
@@ -560,25 +542,6 @@ func (v *verifier) getManifestDescriptorFromReference(repo notationregistry.Repo
 	}
 
 	return repo.Resolve(context.Background(), ref.ReferenceOrDefault())
-}
-
-func (v *verifier) getDigest(ctx context.Context, imageRef string) (string, error) {
-	parsedRef, err := name.ParseReference(imageRef)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse image reference: %s, error: %v", imageRef, err)
-	}
-	remoteOpts, err := v.getRemoteOpts(ctx, imageRef)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to get gcr remote opts")
-	}
-	desc, err := gcrremote.Get(parsedRef, remoteOpts...)
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch image reference: %s, error: %v", imageRef, err)
-	}
-	if _, ok := parsedRef.(name.Digest); ok && parsedRef.Identifier() != desc.Digest.String() {
-		return "", fmt.Errorf("digest mismatch, expected: %s, received: %s", parsedRef.Identifier(), desc.Digest.String())
-	}
-	return desc.Digest.String(), nil
 }
 
 func (v *verifier) getReference(digest string, ref name.Reference) string {

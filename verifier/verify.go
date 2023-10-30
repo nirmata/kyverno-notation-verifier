@@ -111,6 +111,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
 			}
+			if len(result.Digest) == 0 {
+				v.logger.Infof("Image reference has been skipped in the trust policy, image=%s", image)
+				continue
+			}
 			response.AddImage(image.String(), result)
 		}
 		v.logger.Infof("verified %d containers ", images.Containers)
@@ -123,6 +127,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
 			}
+			if len(result.Digest) == 0 {
+				v.logger.Infof("Image reference has been skipped in the trust policy, image=%s", image)
+				continue
+			}
 			response.AddImage(image.String(), result)
 		}
 		v.logger.Infof("verified %d initContainers", images.InitContainers)
@@ -134,6 +142,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 			if err != nil {
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
+			}
+			if len(result.Digest) == 0 {
+				v.logger.Infof("Image reference has been skipped in the trust policy, image=%s", image)
+				continue
 			}
 			response.AddImage(image.String(), result)
 		}
@@ -223,6 +235,10 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 			digest, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
+			}
+			if len(digest) == 0 {
+				v.logger.Infof("Image reference has been skipped in the trust policy, image=%s", image)
+				continue
 			}
 			ivm.Add(v.getReference(digest, ref), true)
 		}
@@ -545,7 +561,11 @@ func (v *verifier) getManifestDescriptorFromReference(repo notationregistry.Repo
 }
 
 func (v *verifier) getReference(digest string, ref name.Reference) string {
-	return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + digest
+	if len(digest) == 0 {
+		return ref.String()
+	} else {
+		return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + digest
+	}
 }
 
 func (v *verifier) getTrustPolicy(req *types.VerificationRequest) string {

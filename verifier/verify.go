@@ -609,10 +609,15 @@ func (v *verifier) checkAllAttestationsForImage(trustPolicy string, image string
 }
 
 func matchImageReferences(imageReferences []string, image string) bool {
+	if len(imageReferences) == 0 {
+		return true
+	}
+
 	for _, imageRef := range imageReferences {
 		if wildcard.Match(imageRef, image) {
 			return true
 		}
 	}
+
 	return false
 }

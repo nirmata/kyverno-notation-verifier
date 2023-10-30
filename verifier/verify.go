@@ -532,12 +532,12 @@ func (v *verifier) resolveDigest(repo notationregistry.Repository, ref registry.
 	}
 
 	// Resolve tag reference to digest reference.
-	manifestDesc, err := v.getManifestDescriptorFromReference(repo, ref.String())
+	digest, err := v.getDigest(context.Background(), ref.String())
 	if err != nil {
 		return registry.Reference{}, err
 	}
 
-	ref.Reference = manifestDesc.Digest.String()
+	ref.Reference = digest
 	return ref, nil
 }
 
@@ -551,13 +551,23 @@ func isDigestReference(reference string) bool {
 	return index != -1
 }
 
-func (v *verifier) getManifestDescriptorFromReference(repo notationregistry.Repository, reference string) (ocispec.Descriptor, error) {
-	ref, err := registry.ParseReference(reference)
+func (v *verifier) getDigest(ctx context.Context, imageRef string) (string, error) {
+	parsedRef, err := name.ParseReference(imageRef)
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return "", fmt.Errorf("failed to parse image reference: %s, error: %v", imageRef, err)
 	}
-
-	return repo.Resolve(context.Background(), ref.ReferenceOrDefault())
+	remoteOpts, err := v.getRemoteOpts(ctx, imageRef)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get gcr remote opts")
+	}
+	desc, err := gcrremote.Get(parsedRef, remoteOpts...)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch image reference: %s, error: %v", imageRef, err)
+	}
+	if _, ok := parsedRef.(name.Digest); ok && parsedRef.Identifier() != desc.Digest.String() {
+		return "", fmt.Errorf("digest mismatch, expected: %s, received: %s", parsedRef.Identifier(), desc.Digest.String())
+	}
+	return desc.Digest.String(), nil
 }
 
 func (v *verifier) getReference(digest string, ref name.Reference) string {

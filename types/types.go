@@ -54,7 +54,7 @@ type RequestData struct {
 	// address (defaults to docker.io), repository, image, and tag (defaults to latest).
 	// Wildcards ('*' and '?') are allowed. See: https://kubernetes.io/docs/concepts/containers/images.
 	// +kubebuilder:validation:Optional
-	ImageReferences []string `json:"imageReferences,omitempty"`
+	ImageReferences []string `json:"imageReferences"`
 
 	// List of images in the form of kyverno's image variable
 	Images ImageInfos `json:"images"`
@@ -76,7 +76,7 @@ type VerificationRequest struct {
 	// address (defaults to docker.io), repository, image, and tag (defaults to latest).
 	// Wildcards ('*' and '?') are allowed. See: https://kubernetes.io/docs/concepts/containers/images.
 	// +kubebuilder:validation:Optional
-	ImageReferences []string `json:"imageReferences,omitempty"`
+	ImageReferences []string `json:"imageReferences"`
 
 	// List of images in the form of kyverno's image variable
 	Images ImageInfos `json:"images"`

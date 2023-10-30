@@ -19,6 +19,7 @@ import (
 	enginecontext "github.com/kyverno/kyverno/pkg/engine/context"
 	"github.com/kyverno/kyverno/pkg/engine/jmespath"
 	"github.com/kyverno/kyverno/pkg/engine/variables"
+	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/cache"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/nirmata/kyverno-notation-verifier/types"
@@ -106,6 +107,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.Containers {
+			if !matchImageReferences(requestData.ImageReferences, image.String()) {
+				v.logger.Infof("Skipping image %s", image.String())
+				continue
+			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
@@ -122,6 +127,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.InitContainers {
+			if !matchImageReferences(requestData.ImageReferences, image.String()) {
+				v.logger.Infof("Skipping image %s", image.String())
+				continue
+			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
@@ -138,6 +147,10 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.EphemeralContainers {
+			if !matchImageReferences(requestData.ImageReferences, image.String()) {
+				v.logger.Infof("Skipping image %s", image.String())
+				continue
+			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
@@ -593,4 +606,13 @@ func (v *verifier) checkAllAttestationsForImage(trustPolicy string, image string
 		}
 	}
 	return true
+}
+
+func matchImageReferences(imageReferences []string, image string) bool {
+	for _, imageRef := range imageReferences {
+		if wildcard.Match(imageRef, image) {
+			return true
+		}
+	}
+	return false
 }

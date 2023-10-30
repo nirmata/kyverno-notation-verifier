@@ -52,9 +52,10 @@ func ProcessRequestData(req *types.RequestData) (*types.VerificationRequest, err
 	}
 
 	return &types.VerificationRequest{
-		Images:       req.Images,
-		Attestations: req.Attestations,
-		TrustPolicy:  req.TrustPolicy,
-		Metadata:     metadata,
+		ImageReferences: req.ImageReferences,
+		Images:          req.Images,
+		Attestations:    req.Attestations,
+		TrustPolicy:     req.TrustPolicy,
+		Metadata:        metadata,
 	}, nil
 }

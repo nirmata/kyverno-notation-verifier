@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
-	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
+	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"oras.land/oras-go/v2/registry"
@@ -44,7 +44,7 @@ func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference
 		secrets = append(secrets, *secret)
 	}
 
-	keychain, err := kauth.NewFromPullSecrets(ctx, secrets)
+	keychain, err := k8schain.NewFromPullSecrets(ctx, secrets)
 	if err != nil {
 		return nil, err
 	}

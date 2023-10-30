@@ -486,10 +486,10 @@ func (v *verifier) parseReferenceAndResolveDigest(ctx context.Context, ref strin
 	repo.Client = authClient
 	repository := notationregistry.NewRepository(repo)
 
-	// parsedRef, err = v.resolveDigest(repository, parsedRef)
-	// if err != nil {
-	// 	return nil, registry.Reference{}, errors.Wrapf(err, "failed to resolve digest")
-	// }
+	parsedRef, err = v.resolveDigest(repository, parsedRef)
+	if err != nil {
+		return nil, registry.Reference{}, errors.Wrapf(err, "failed to resolve digest")
+	}
 
 	return repository, parsedRef, nil
 }

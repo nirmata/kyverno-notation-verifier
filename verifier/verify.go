@@ -19,6 +19,7 @@ import (
 	enginecontext "github.com/kyverno/kyverno/pkg/engine/context"
 	"github.com/kyverno/kyverno/pkg/engine/jmespath"
 	"github.com/kyverno/kyverno/pkg/engine/variables"
+	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/cache"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/nirmata/kyverno-notation-verifier/types"
@@ -106,10 +107,18 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.Containers {
+			if !matchImageReferences(requestData.ImageReferences, image.String()) {
+				v.logger.Infof("Skipping image %s", image.String())
+				continue
+			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
+			}
+			if len(result.Digest) == 0 {
+				v.logger.Infof("Image reference has been skipped in the trust policy, image=%s", image)
+				continue
 			}
 			response.AddImage(image.String(), result)
 		}
@@ -118,10 +127,18 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.InitContainers {
+			if !matchImageReferences(requestData.ImageReferences, image.String()) {
+				v.logger.Infof("Skipping image %s", image.String())
+				continue
+			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
+			}
+			if len(result.Digest) == 0 {
+				v.logger.Infof("Image reference has been skipped in the trust policy, image=%s", image)
+				continue
 			}
 			response.AddImage(image.String(), result)
 		}
@@ -130,10 +147,18 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 
 	if !verificationFailed {
 		for _, image := range images.EphemeralContainers {
+			if !matchImageReferences(requestData.ImageReferences, image.String()) {
+				v.logger.Infof("Skipping image %s", image.String())
+				continue
+			}
 			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
 			if err != nil {
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
+			}
+			if len(result.Digest) == 0 {
+				v.logger.Infof("Image reference has been skipped in the trust policy, image=%s", image)
+				continue
 			}
 			response.AddImage(image.String(), result)
 		}
@@ -223,6 +248,10 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 			digest, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
+			}
+			if len(digest) == 0 {
+				v.logger.Infof("Image reference has been skipped in the trust policy, image=%s", image)
+				continue
 			}
 			ivm.Add(v.getReference(digest, ref), true)
 		}
@@ -516,12 +545,12 @@ func (v *verifier) resolveDigest(repo notationregistry.Repository, ref registry.
 	}
 
 	// Resolve tag reference to digest reference.
-	manifestDesc, err := v.getManifestDescriptorFromReference(repo, ref.String())
+	digest, err := v.getDigest(context.Background(), ref.String())
 	if err != nil {
 		return registry.Reference{}, err
 	}
 
-	ref.Reference = manifestDesc.Digest.String()
+	ref.Reference = digest
 	return ref, nil
 }
 
@@ -535,17 +564,31 @@ func isDigestReference(reference string) bool {
 	return index != -1
 }
 
-func (v *verifier) getManifestDescriptorFromReference(repo notationregistry.Repository, reference string) (ocispec.Descriptor, error) {
-	ref, err := registry.ParseReference(reference)
+func (v *verifier) getDigest(ctx context.Context, imageRef string) (string, error) {
+	parsedRef, err := name.ParseReference(imageRef)
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return "", fmt.Errorf("failed to parse image reference: %s, error: %v", imageRef, err)
 	}
-
-	return repo.Resolve(context.Background(), ref.ReferenceOrDefault())
+	remoteOpts, err := v.getRemoteOpts(ctx, imageRef)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get gcr remote opts")
+	}
+	desc, err := gcrremote.Get(parsedRef, remoteOpts...)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch image reference: %s, error: %v", imageRef, err)
+	}
+	if _, ok := parsedRef.(name.Digest); ok && parsedRef.Identifier() != desc.Digest.String() {
+		return "", fmt.Errorf("digest mismatch, expected: %s, received: %s", parsedRef.Identifier(), desc.Digest.String())
+	}
+	return desc.Digest.String(), nil
 }
 
 func (v *verifier) getReference(digest string, ref name.Reference) string {
-	return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + digest
+	if len(digest) == 0 {
+		return ref.String()
+	} else {
+		return ref.Context().RegistryStr() + "/" + ref.Context().RepositoryStr() + "@" + digest
+	}
 }
 
 func (v *verifier) getTrustPolicy(req *types.VerificationRequest) string {
@@ -563,4 +606,18 @@ func (v *verifier) checkAllAttestationsForImage(trustPolicy string, image string
 		}
 	}
 	return true
+}
+
+func matchImageReferences(imageReferences []string, image string) bool {
+	if len(imageReferences) == 0 {
+		return true
+	}
+
+	for _, imageRef := range imageReferences {
+		if wildcard.Match(imageRef, image) {
+			return true
+		}
+	}
+
+	return false
 }

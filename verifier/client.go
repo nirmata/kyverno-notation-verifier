@@ -166,7 +166,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if !result.Status.Authenticated || result.Status.User.Username != "system:serviceaccount:kyverno:kyverno-admission-controller" {
+		if !result.Status.Authenticated || !isKyverno(result.Status.User.Username) {
 			v.logger.Infof("Token is not authorized %+v", *result)
 			http.Error(w, "Token is not authorized", http.StatusNotAcceptable)
 			return
@@ -243,4 +243,8 @@ func (v *verifier) Stop() {
 	v.logger.Sync()
 	v.informerFactory.Shutdown()
 	v.stopCh <- struct{}{}
+}
+
+func isKyverno(username string) bool {
+	return username == "system:serviceaccount:kyverno:kyverno-admission-controller" || username == "system:serviceaccount:kyverno:kyverno-reports-controller"
 }

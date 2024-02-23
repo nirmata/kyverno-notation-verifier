@@ -3,6 +3,7 @@ package verifier
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -54,6 +55,8 @@ type verifier struct {
 	stopCh                     chan struct{}
 	engineContext              enginecontext.Interface
 	cache                      cache.Cache
+	kyvernoNamespace           string
+	allowedUsers               []string
 }
 
 type verifierOptsFunc func(*verifier)
@@ -112,6 +115,18 @@ func WithEnableDebug(debug bool) verifierOptsFunc {
 	}
 }
 
+func WithKyvernoNamespace(ns string) verifierOptsFunc {
+	return func(v *verifier) {
+		v.kyvernoNamespace = ns
+	}
+}
+
+func WithAllowedUsers(users []string) verifierOptsFunc {
+	return func(v *verifier) {
+		v.allowedUsers = users
+	}
+}
+
 func WithProviderAuthConfigResolver(providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)) verifierOptsFunc {
 	return func(v *verifier) {
 		v.providerAuthConfigResolver = providerAuthConfigResolver
@@ -166,7 +181,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if !result.Status.Authenticated || !isKyverno(result.Status.User.Username) {
+		if !result.Status.Authenticated || !(v.isKyverno(result.Status.User.Username) || v.isAllowed(result.Status.User.Username)) {
 			v.logger.Infof("Token is not authorized %+v", *result)
 			http.Error(w, "Token is not authorized", http.StatusNotAcceptable)
 			return
@@ -245,6 +260,16 @@ func (v *verifier) Stop() {
 	v.stopCh <- struct{}{}
 }
 
-func isKyverno(username string) bool {
-	return username == "system:serviceaccount:kyverno:kyverno-admission-controller" || username == "system:serviceaccount:kyverno:kyverno-reports-controller"
+func (v *verifier) isKyverno(username string) bool {
+	return username == fmt.Sprintf("system:serviceaccount:%s:kyverno-admission-controller", v.kyvernoNamespace) || username == fmt.Sprintf("system:serviceaccount:%s:kyverno-reports-controller", v.kyvernoNamespace)
+}
+
+func (v *verifier) isAllowed(username string) bool {
+	for _, u := range v.allowedUsers {
+		if u == username {
+			return true
+		}
+	}
+
+	return false
 }

@@ -12,7 +12,7 @@ import (
 )
 
 func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (*authn.AuthConfig, error) {
-	keychains := make([]authn.Keychain, 1)
+	keychains := make([]authn.Keychain, 0)
 	keychains = append(keychains, authn.DefaultKeychain)
 	if v.imagePullSecrets != "" {
 		secretKeychain, err := v.getAuthFromSecret(ctx, ref)

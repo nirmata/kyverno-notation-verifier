@@ -35,27 +35,27 @@ type Verifier interface {
 }
 
 type verifier struct {
-	logger                     *zap.SugaredLogger
-	kubeClient                 *kubernetes.Clientset
-	notationVerifierFactory    notationfactory.NotationVeriferFactory
-	informerFactory            kubeinformers.SharedInformerFactory
-	secretLister               corev1listers.SecretNamespaceLister
-	configMapLister            corev1listers.ConfigMapNamespaceLister
-	providerKeychain	   authn.Keychain
-	imagePullSecrets           string
-	insecureRegistry           bool
-	pluginConfigMap            string
-	maxSignatureAttempts       int
-	maxCacheSize               int64
-	useCache                   bool
-	reviewToken                bool
-	maxCacheTTL                time.Duration
-	debug                      bool
-	stopCh                     chan struct{}
-	engineContext              enginecontext.Interface
-	cache                      cache.Cache
-	kyvernoNamespace           string
-	allowedUsers               []string
+	logger                  *zap.SugaredLogger
+	kubeClient              *kubernetes.Clientset
+	notationVerifierFactory notationfactory.NotationVeriferFactory
+	informerFactory         kubeinformers.SharedInformerFactory
+	secretLister            corev1listers.SecretNamespaceLister
+	configMapLister         corev1listers.ConfigMapNamespaceLister
+	providerKeychain        authn.Keychain
+	imagePullSecrets        string
+	insecureRegistry        bool
+	pluginConfigMap         string
+	maxSignatureAttempts    int
+	maxCacheSize            int64
+	useCache                bool
+	reviewToken             bool
+	maxCacheTTL             time.Duration
+	debug                   bool
+	stopCh                  chan struct{}
+	engineContext           enginecontext.Interface
+	cache                   cache.Cache
+	kyvernoNamespace        string
+	allowedUsers            []string
 }
 
 type verifierOptsFunc func(*verifier)

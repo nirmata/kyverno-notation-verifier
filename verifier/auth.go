@@ -16,13 +16,30 @@ func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (*
 		return v.getAuthFromSecret(ctx, ref)
 	}
 
-	if v.providerAuthConfigResolver != nil {
-		return v.providerAuthConfigResolver(ctx, ref)
+	if v.providerKeychain != nil {
+		return v.getAuthFromKeychain(ctx, ref)
 	}
 
 	authConfig, err := authn.Anonymous.Authorization()
 	if err != nil {
 		return nil, err
+	}
+
+	return authConfig, nil
+}
+
+func (v *verifier) getAuthFromKeychain(ctx context.Context, ref registry.Reference) (*authn.AuthConfig, error) {
+	v.logger.Infof("fetching credentials from keychains %s...", v.imagePullSecrets)
+	keychain := authn.NewMultiKeychain(authn.DefaultKeychain, v.providerKeychain)
+
+	authenticator, err := keychain.Resolve(&imageResource{ref})
+	if err != nil {
+		return nil, err
+	}
+
+	authConfig, err := authenticator.Authorization()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get auth config for %s", ref.String())
 	}
 
 	return authConfig, nil

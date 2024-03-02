@@ -23,7 +23,6 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	corev1listers "k8s.io/client-go/listers/core/v1"
-	"oras.land/oras-go/v2/registry"
 )
 
 type Verifier interface {
@@ -42,7 +41,7 @@ type verifier struct {
 	informerFactory            kubeinformers.SharedInformerFactory
 	secretLister               corev1listers.SecretNamespaceLister
 	configMapLister            corev1listers.ConfigMapNamespaceLister
-	providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)
+	providerKeychain	   authn.Keychain
 	imagePullSecrets           string
 	insecureRegistry           bool
 	pluginConfigMap            string
@@ -127,9 +126,9 @@ func WithAllowedUsers(users []string) verifierOptsFunc {
 	}
 }
 
-func WithProviderAuthConfigResolver(providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)) verifierOptsFunc {
+func WithProviderKeychain(keychain authn.Keychain) verifierOptsFunc {
 	return func(v *verifier) {
-		v.providerAuthConfigResolver = providerAuthConfigResolver
+		v.providerKeychain = keychain
 	}
 }
 

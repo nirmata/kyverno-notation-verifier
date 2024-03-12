@@ -357,7 +357,8 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	if found || img != nil {
 		ivm.Add(image.String(), true)
 		v.logger.Infof("Entry for the image found in cache, skipping image=%s; trustpolicy=%s", image, trustPolicy)
-		return img, nil
+		image.ImageInfo = *img
+		return &image, nil
 	}
 	v.logger.Infof("Entry not found in the cache verifying image=%s", imgRef)
 
@@ -371,7 +372,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	image.Digest = digest
 	ivm.Add(image.String(), true)
 
-	if err := v.cache.AddImage(trustPolicy, imgRef, image); err != nil {
+	if err := v.cache.AddImage(trustPolicy, imgRef, image.ImageInfo); err != nil {
 		return nil, errors.Wrapf(err, "failed to add image to the cache %s", image)
 	}
 

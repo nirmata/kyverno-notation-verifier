@@ -21,7 +21,6 @@ import (
 	"github.com/kyverno/kyverno/pkg/engine/variables"
 	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/cache"
-	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/nirmata/kyverno-notation-verifier/types"
 	"github.com/notaryproject/notation-go"
 	notationlog "github.com/notaryproject/notation-go/log"
@@ -52,14 +51,6 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create Kubernetes client")
 	}
-
-	v.notationVerifierFactory = notationfactory.NewNotationVerifierFactory(logger)
-	err = v.notationVerifierFactory.RefreshVerifiers()
-	if err != nil {
-		v.logger.Errorf("failed to create notation verifiers, error: %v", err)
-		return nil, err
-	}
-	v.logger.Info("notation verifier created")
 
 	namespace := os.Getenv("POD_NAMESPACE")
 	v.informerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(v.kubeClient, 15*time.Minute, kubeinformers.WithNamespace(namespace))

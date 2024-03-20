@@ -59,6 +59,12 @@ type verifier struct {
 
 type verifierOptsFunc func(*verifier)
 
+func WithNotationVerifierFactory(notationVerifierFactory notationfactory.NotationVeriferFactory) verifierOptsFunc {
+	return func(v *verifier) {
+		v.notationVerifierFactory = notationVerifierFactory
+	}
+}
+
 func WithImagePullSecrets(secrets string) verifierOptsFunc {
 	return func(v *verifier) {
 		v.imagePullSecrets = secrets

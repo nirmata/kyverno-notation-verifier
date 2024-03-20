@@ -32,14 +32,15 @@ import (
 	"github.com/go-logr/logr"
 	notationv1alpha1 "github.com/nirmata/kyverno-notation-verifier/kubenotation/api/v1alpha1"
 	"github.com/nirmata/kyverno-notation-verifier/kubenotation/utils"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/pkg/errors"
 )
 
 // TrustPolicyReconciler reconciles a TrustPolicy object
 type TrustPolicyReconciler struct {
 	client.Client
-	Scheme            *runtime.Scheme
-	CRDChangeInformer *chan struct{}
+	Scheme                 *runtime.Scheme
+	NotationVerfierFactory notationfactory.NotationVeriferFactory
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=trustpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -72,12 +73,12 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			}
 		}
 
-		if err := writeTrustPolicy(trustPolicy, log, r.CRDChangeInformer); err != nil {
+		if err := writeTrustPolicy(trustPolicy, log, r.NotationVerfierFactory); err != nil {
 			return ctrl.Result{}, err
 		}
 
 	} else { // handle delete
-		if err := deleteTrustPolicy(trustPolicy, log, r.CRDChangeInformer); err != nil {
+		if err := deleteTrustPolicy(trustPolicy, log, r.NotationVerfierFactory); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust policy")
 		}
 
@@ -90,7 +91,7 @@ func (r *TrustPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdChangeChan *chan struct{}) error {
+func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, notationVerifierFactory notationfactory.NotationVeriferFactory) error {
 	log.Info("writing trust policy", "name", policy.Spec.TrustPolicyName)
 	if err := os.MkdirAll(utils.NotationPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
@@ -107,17 +108,14 @@ func writeTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdC
 
 	log.Info("updated trust policy", "path", fileName)
 
-	select {
-	case *crdChangeChan <- struct{}{}:
-		log.Info("CRDs updated: sent update request")
-	default:
-		log.Info("CRDs updated: update request already present")
+	if err := notationVerifierFactory.RefreshVerifiers(); err != nil {
+		return errors.Wrapf(err, "failed to update notation verifiers")
 	}
 
 	return nil
 }
 
-func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crdChangeChan *chan struct{}) error {
+func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, notationVerifierFactory notationfactory.NotationVeriferFactory) error {
 	log.Info("deleting trust policy", "name", policy.Spec.TrustPolicyName)
 
 	trustPolicyName := fmt.Sprintf("%s.json", policy.Spec.TrustPolicyName)
@@ -128,11 +126,8 @@ func deleteTrustPolicy(policy notationv1alpha1.TrustPolicy, log logr.Logger, crd
 
 	log.Info("deleted trust policy", "path", fileName)
 
-	select {
-	case *crdChangeChan <- struct{}{}:
-		log.Info("CRDs updated: sent update request")
-	default:
-		log.Info("CRDs updated: update request already present")
+	if err := notationVerifierFactory.RefreshVerifiers(); err != nil {
+		return errors.Wrapf(err, "failed to update notation verifiers")
 	}
 
 	return nil

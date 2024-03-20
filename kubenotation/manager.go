@@ -33,6 +33,7 @@ import (
 	"github.com/go-logr/logr"
 	notationv1alpha1 "github.com/nirmata/kyverno-notation-verifier/kubenotation/api/v1alpha1"
 	"github.com/nirmata/kyverno-notation-verifier/kubenotation/internal/controller"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/pkg/errors"
 	//+kubebuilder:scaffold:imports
 )
@@ -49,11 +50,11 @@ func init() {
 }
 
 type SetupResult struct {
-	CRDManager        *manager.Manager
-	CRDChangeInformer *chan struct{}
+	CRDManager      *manager.Manager
+	NotationFactory notationfactory.NotationVeriferFactory
 }
 
-func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeaderElection bool) (*SetupResult, error) {
+func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeaderElection bool, notationVerifierFactory notationfactory.NotationVeriferFactory) (*SetupResult, error) {
 	ctrl.SetLogger(logger)
 	logger = logger.WithName("setup")
 
@@ -81,19 +82,18 @@ func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeade
 		return nil, errors.Wrapf(err, "unable to start manager")
 	}
 
-	tpChan := make(chan struct{}, 1)
 	if err = (&controller.TrustPolicyReconciler{
-		Client:            mgr.GetClient(),
-		Scheme:            mgr.GetScheme(),
-		CRDChangeInformer: &tpChan,
+		Client:                 mgr.GetClient(),
+		Scheme:                 mgr.GetScheme(),
+		NotationVerfierFactory: notationVerifierFactory,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "TrustPolicy")
 		return nil, errors.Wrapf(err, "unable to create controller TrustPolicy")
 	}
 	if err = (&controller.TrustStoreReconciler{
-		Client:            mgr.GetClient(),
-		Scheme:            mgr.GetScheme(),
-		CRDChangeInformer: &tpChan,
+		Client:                  mgr.GetClient(),
+		Scheme:                  mgr.GetScheme(),
+		NotationVerifierFactory: notationVerifierFactory,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "TrustStore")
 		return nil, errors.Wrapf(err, "unable to create controller TrustStore")
@@ -116,7 +116,7 @@ func Setup(logger logr.Logger, metricsAddr string, probeAddr string, enableLeade
 	// }
 
 	return &SetupResult{
-		CRDManager:        &mgr,
-		CRDChangeInformer: &tpChan,
+		CRDManager:      &mgr,
+		NotationFactory: notationVerifierFactory,
 	}, nil
 }

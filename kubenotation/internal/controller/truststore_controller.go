@@ -30,14 +30,15 @@ import (
 	"github.com/go-logr/logr"
 	notationv1alpha1 "github.com/nirmata/kyverno-notation-verifier/kubenotation/api/v1alpha1"
 	"github.com/nirmata/kyverno-notation-verifier/kubenotation/utils"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
 	"github.com/pkg/errors"
 )
 
 // TrustStoreReconciler reconciles a TrustStore object
 type TrustStoreReconciler struct {
 	client.Client
-	Scheme            *runtime.Scheme
-	CRDChangeInformer *chan struct{}
+	Scheme                  *runtime.Scheme
+	NotationVerifierFactory notationfactory.NotationVeriferFactory
 }
 
 //+kubebuilder:rbac:groups=notation.nirmata.io,resources=truststores,verbs=get;list;watch;create;update;patch;delete
@@ -70,12 +71,12 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			}
 		}
 
-		if err := writeTrustStore(trustStore, log, r.CRDChangeInformer); err != nil {
+		if err := writeTrustStore(trustStore, log, r.NotationVerifierFactory); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to update trust store")
 		}
 
 	} else {
-		if err := deleteTrustStore(trustStore, log, r.CRDChangeInformer); err != nil {
+		if err := deleteTrustStore(trustStore, log, r.NotationVerifierFactory); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to delete trust store")
 		}
 
@@ -88,7 +89,7 @@ func (r *TrustStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdChangeChan *chan struct{}) error {
+func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, notationVerifierFactory notationfactory.NotationVeriferFactory) error {
 	tsPath := filepath.Join(utils.NotationPath, utils.TrustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.MkdirAll(tsPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create output directory")
@@ -98,17 +99,14 @@ func writeTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdChan
 	os.WriteFile(certFile, []byte(store.Spec.CABundle), 0600)
 	log.Info("updated trust store", "path", certFile)
 
-	select {
-	case *crdChangeChan <- struct{}{}:
-		log.Info("CRDs updated: sent update request")
-	default:
-		log.Info("CRDs updated: update request already present")
+	if err := notationVerifierFactory.RefreshVerifiers(); err != nil {
+		return errors.Wrapf(err, "failed to update notation verifiers")
 	}
 
 	return nil
 }
 
-func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdChangeChan *chan struct{}) error {
+func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, notationVerifierFactory notationfactory.NotationVeriferFactory) error {
 	tsPath := filepath.Join(utils.NotationPath, utils.TrustStorePath, store.Spec.Type, store.Spec.TrustStoreName)
 	if err := os.RemoveAll(tsPath); err != nil {
 		return errors.Wrapf(err, "failed to delete %s", tsPath)
@@ -116,11 +114,8 @@ func deleteTrustStore(store notationv1alpha1.TrustStore, log logr.Logger, crdCha
 
 	log.Info("deleted trust store", "path", tsPath)
 
-	select {
-	case *crdChangeChan <- struct{}{}:
-		log.Info("CRDs updated: sent update request")
-	default:
-		log.Info("CRDs updated: update request already present")
+	if err := notationVerifierFactory.RefreshVerifiers(); err != nil {
+		return errors.Wrapf(err, "failed to update notation verifiers")
 	}
 
 	return nil

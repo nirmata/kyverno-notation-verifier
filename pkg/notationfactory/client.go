@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/nirmata/kyverno-notation-verifier/kubenotation/utils"
-	"github.com/nirmata/kyverno-notation-verifier/types"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/types"
 	"github.com/notaryproject/notation-go"
 	"github.com/notaryproject/notation-go/dir"
 	"github.com/notaryproject/notation-go/plugin"

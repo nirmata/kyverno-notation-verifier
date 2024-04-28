@@ -14,7 +14,7 @@ import (
 	enginecontext "github.com/kyverno/kyverno/pkg/engine/context"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/cache"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
-	"github.com/nirmata/kyverno-notation-verifier/types"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/types"
 	"github.com/nirmata/kyverno-notation-verifier/verifier/internal"
 	"go.uber.org/zap"
 	authv1 "k8s.io/api/authentication/v1"

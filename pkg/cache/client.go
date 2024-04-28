@@ -7,15 +7,15 @@ import (
 
 	"github.com/dgraph-io/ristretto"
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
-	imageutils "github.com/kyverno/kyverno/pkg/utils/image"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/types"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
 type Cache interface {
-	AddImage(trustPolicy string, imageRef string, result imageutils.ImageInfo) error
+	AddImage(trustPolicy string, imageRef string, result types.Image) error
 
-	GetImage(trustPolicy string, imageRef string) (*imageutils.ImageInfo, bool)
+	GetImage(trustPolicy string, imageRef string) (*types.Image, bool)
 
 	AddAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) error
 
@@ -100,7 +100,7 @@ func WithLogger(l *zap.SugaredLogger) Option {
 	}
 }
 
-func (c *cache) AddImage(trustPolicy string, imageRef string, result imageutils.ImageInfo) error {
+func (c *cache) AddImage(trustPolicy string, imageRef string, result types.Image) error {
 	c.log.Infof("Adding image to the cache: trustPolicy=%s, imageRef=%s, result=%v", trustPolicy, imageRef, result)
 	if !c.useCache {
 		c.log.Infof("Cache is disabled not adding image")
@@ -116,7 +116,7 @@ func (c *cache) AddImage(trustPolicy string, imageRef string, result imageutils.
 	return nil
 }
 
-func (c *cache) GetImage(trustPolicy string, imageRef string) (*imageutils.ImageInfo, bool) {
+func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.Image, bool) {
 	c.log.Infof("Getting image from the cache: trustPolicy=%s, imageRef=%s", trustPolicy, imageRef)
 	if !c.useCache {
 		c.log.Infof("Cache is disabled not getting image")
@@ -131,8 +131,8 @@ func (c *cache) GetImage(trustPolicy string, imageRef string) (*imageutils.Image
 		return nil, false
 	}
 
-	var val imageutils.ImageInfo
-	if val, ok = entry.(imageutils.ImageInfo); !ok {
+	var val types.Image
+	if val, ok = entry.(types.Image); !ok {
 		c.log.Infof("Invalid in the cache %s", key)
 		return nil, false
 	}

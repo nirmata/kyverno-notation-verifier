@@ -22,7 +22,7 @@ import (
 	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/cache"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/notationfactory"
-	"github.com/nirmata/kyverno-notation-verifier/types"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/types"
 	"github.com/notaryproject/notation-go"
 	notationlog "github.com/notaryproject/notation-go/log"
 	notationregistry "github.com/notaryproject/notation-go/registry"
@@ -357,7 +357,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	if found || img != nil {
 		ivm.Add(image.String(), true)
 		v.logger.Infof("Entry for the image found in cache, skipping image=%s; trustpolicy=%s", image, trustPolicy)
-		image.ImageInfo = *img
+		image.Image = *img
 		return &image, nil
 	}
 	v.logger.Infof("Entry not found in the cache verifying image=%s", imgRef)
@@ -372,7 +372,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	image.Digest = digest
 	ivm.Add(image.String(), true)
 
-	if err := v.cache.AddImage(trustPolicy, imgRef, image.ImageInfo); err != nil {
+	if err := v.cache.AddImage(trustPolicy, imgRef, image.Image); err != nil {
 		return nil, errors.Wrapf(err, "failed to add image to the cache %s", image)
 	}
 

@@ -3,7 +3,6 @@ package verifier
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -54,7 +53,6 @@ type verifier struct {
 	stopCh                  chan struct{}
 	engineContext           enginecontext.Interface
 	cache                   cache.Cache
-	kyvernoNamespace        string
 	allowedUsers            []string
 }
 
@@ -111,12 +109,6 @@ func WithTokenReviewEnabled(enableTokenReview bool) verifierOptsFunc {
 func WithEnableDebug(debug bool) verifierOptsFunc {
 	return func(v *verifier) {
 		v.debug = debug
-	}
-}
-
-func WithKyvernoNamespace(ns string) verifierOptsFunc {
-	return func(v *verifier) {
-		v.kyvernoNamespace = ns
 	}
 }
 
@@ -180,7 +172,7 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if !result.Status.Authenticated || !(v.isKyverno(result.Status.User.Username) || v.isAllowed(result.Status.User.Username)) {
+		if !result.Status.Authenticated || !v.isAllowed(result.Status.User.Username) {
 			v.logger.Infof("Token is not authorized %+v", *result)
 			http.Error(w, "Token is not authorized", http.StatusNotAcceptable)
 			return
@@ -257,10 +249,6 @@ func (v *verifier) Stop() {
 	v.logger.Sync()
 	v.informerFactory.Shutdown()
 	v.stopCh <- struct{}{}
-}
-
-func (v *verifier) isKyverno(username string) bool {
-	return username == fmt.Sprintf("system:serviceaccount:%s:kyverno-admission-controller", v.kyvernoNamespace) || username == fmt.Sprintf("system:serviceaccount:%s:kyverno-reports-controller", v.kyvernoNamespace)
 }
 
 func (v *verifier) isAllowed(username string) bool {

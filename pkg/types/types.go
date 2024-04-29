@@ -13,10 +13,14 @@ var (
 )
 
 type ImageInfo struct {
-	imageutils.ImageInfo
+	Image
 
 	// Pointer is the path to the image object in the resource
 	Pointer string `json:"jsonPointer"`
+}
+
+type Image struct {
+	imageutils.ImageInfo
 }
 
 type AttestationType struct {

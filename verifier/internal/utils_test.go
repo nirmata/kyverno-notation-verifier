@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nirmata/kyverno-notation-verifier/types"
+	"github.com/nirmata/kyverno-notation-verifier/pkg/types"
 	"gotest.tools/assert"
 )
 

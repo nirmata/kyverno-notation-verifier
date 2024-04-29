@@ -22,7 +22,6 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	corev1listers "k8s.io/client-go/listers/core/v1"
-	"oras.land/oras-go/v2/registry"
 )
 
 type Verifier interface {
@@ -35,26 +34,26 @@ type Verifier interface {
 }
 
 type verifier struct {
-	logger                     *zap.SugaredLogger
-	kubeClient                 *kubernetes.Clientset
-	notationVerifierFactory    notationfactory.NotationVeriferFactory
-	informerFactory            kubeinformers.SharedInformerFactory
-	secretLister               corev1listers.SecretNamespaceLister
-	configMapLister            corev1listers.ConfigMapNamespaceLister
-	providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)
-	imagePullSecrets           string
-	insecureRegistry           bool
-	pluginConfigMap            string
-	maxSignatureAttempts       int
-	maxCacheSize               int64
-	useCache                   bool
-	reviewToken                bool
-	maxCacheTTL                time.Duration
-	debug                      bool
-	stopCh                     chan struct{}
-	engineContext              enginecontext.Interface
-	cache                      cache.Cache
-	allowedUsers               []string
+	logger                  *zap.SugaredLogger
+	kubeClient              *kubernetes.Clientset
+	notationVerifierFactory notationfactory.NotationVeriferFactory
+	informerFactory         kubeinformers.SharedInformerFactory
+	secretLister            corev1listers.SecretNamespaceLister
+	configMapLister         corev1listers.ConfigMapNamespaceLister
+	providerKeychain        authn.Keychain
+	imagePullSecrets        string
+	insecureRegistry        bool
+	pluginConfigMap         string
+	maxSignatureAttempts    int
+	maxCacheSize            int64
+	useCache                bool
+	reviewToken             bool
+	maxCacheTTL             time.Duration
+	debug                   bool
+	stopCh                  chan struct{}
+	engineContext           enginecontext.Interface
+	cache                   cache.Cache
+	allowedUsers            []string
 }
 
 type verifierOptsFunc func(*verifier)
@@ -119,9 +118,9 @@ func WithAllowedUsers(users []string) verifierOptsFunc {
 	}
 }
 
-func WithProviderAuthConfigResolver(providerAuthConfigResolver func(context.Context, registry.Reference) (*authn.AuthConfig, error)) verifierOptsFunc {
+func WithProviderKeychain(keychain authn.Keychain) verifierOptsFunc {
 	return func(v *verifier) {
-		v.providerAuthConfigResolver = providerAuthConfigResolver
+		v.providerKeychain = keychain
 	}
 }
 

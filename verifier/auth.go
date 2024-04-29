@@ -12,23 +12,36 @@ import (
 )
 
 func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (*authn.AuthConfig, error) {
+	keychains := make([]authn.Keychain, 0)
+	keychains = append(keychains, authn.DefaultKeychain)
 	if v.imagePullSecrets != "" {
-		return v.getAuthFromSecret(ctx, ref)
+		secretKeychain, err := v.getAuthFromSecret(ctx, ref)
+		if err != nil {
+			return nil, err
+		}
+		keychains = append(keychains, secretKeychain)
 	}
 
-	if v.providerAuthConfigResolver != nil {
-		return v.providerAuthConfigResolver(ctx, ref)
+	if v.providerKeychain != nil {
+		keychains = append(keychains, v.providerKeychain)
 	}
 
-	authConfig, err := authn.Anonymous.Authorization()
+	keychain := authn.NewMultiKeychain(keychains...)
+
+	authenticator, err := keychain.Resolve(&imageResource{ref})
 	if err != nil {
 		return nil, err
+	}
+
+	authConfig, err := authenticator.Authorization()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get auth config for %s", ref.String())
 	}
 
 	return authConfig, nil
 }
 
-func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference) (*authn.AuthConfig, error) {
+func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference) (authn.Keychain, error) {
 	if v.imagePullSecrets == "" {
 		return nil, errors.Errorf("secret not configured")
 	}
@@ -49,17 +62,7 @@ func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference
 		return nil, err
 	}
 
-	authenticator, err := keychain.Resolve(&imageResource{ref})
-	if err != nil {
-		return nil, err
-	}
-
-	authConfig, err := authenticator.Authorization()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get auth config for %s", ref.String())
-	}
-
-	return authConfig, nil
+	return keychain, nil
 }
 
 type imageResource struct {

@@ -2,7 +2,7 @@ package verifier
 
 import (
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
-	"github.com/kyverno/kyverno/pkg/utils/wildcard"
+	"github.com/kyverno/kyverno/ext/wildcard"
 	"github.com/nirmata/kyverno-notation-verifier/pkg/types"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"

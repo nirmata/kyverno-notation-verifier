@@ -222,6 +222,11 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		return err
 	}
 
+	err = matchAttestations(image, attestationList, referrersDescs.Manifests)
+	if err != nil {
+		return err
+	}
+
 	for _, referrer := range referrersDescs.Manifests {
 		if _, found := attestationList[referrer.ArtifactType]; !found {
 			continue
@@ -621,4 +626,22 @@ func matchImageReferences(imageReferences []string, image string) bool {
 	}
 
 	return false
+}
+
+// matchAttestation verifies that all attestations in the policy are present in the image
+func matchAttestations(image string, attestationList types.AttestationList, refererrs []v1.Descriptor) error {
+	// create a map because referrers can have same artifact type
+	refList := make(map[string]bool)
+	for _, referrer := range refererrs {
+		refList[referrer.ArtifactType] = true
+	}
+
+	// match attestation type list and referrers list
+	for att := range attestationList {
+		if _, found := refList[att]; !found {
+			return fmt.Errorf("failed to find attestation %s in image %s", att, image)
+		}
+	}
+
+	return nil
 }

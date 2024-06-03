@@ -71,6 +71,9 @@ type RequestData struct {
 
 	// Metadata is the current value of kyverno-notation-aws.io/verify-images annotation
 	Metadata string `json:"metadata"`
+
+	// Insecure allows insecure access to the registry
+	Insecure bool `json:"insecure"`
 }
 
 // VerificationRequest is the data sent to verifier after processed from HandleCheckImages request
@@ -93,6 +96,9 @@ type VerificationRequest struct {
 
 	// Metadata is the current value of kyverno-notation-aws.io/verify-images annotation
 	Metadata map[string]bool `json:"metadata"`
+
+	// Insecure allows insecure access to the registry
+	Insecure bool `json:"insecure"`
 }
 
 // Data format of response body for HandleCheckImages

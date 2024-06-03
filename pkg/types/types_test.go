@@ -12,6 +12,7 @@ var (
 	requestBody = `
 {
   "trustPolicy": "aws-trust-policy",
+  "insecure": true,
   "images": {
     "containers": {
       "tomcat": {
@@ -93,6 +94,7 @@ func TestInput(t *testing.T) {
 	assert.Equal(t, requestData.Images.InitContainers["vault"].Name, "vault")
 	assert.Equal(t, requestData.Images.InitContainers["vault"].Pointer, "spec/initContainer/0/image")
 
+	assert.Equal(t, requestData.Insecure, true)
 	assert.Equal(t, len(requestData.Attestations), 2)
 	assert.Equal(t, requestData.Attestations[0].ImageReference, "*")
 	assert.Equal(t, len(requestData.Attestations[0].Type), 2)

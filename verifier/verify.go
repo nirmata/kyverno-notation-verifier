@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-logr/zapr"
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	gcrremote "github.com/google/go-containerregistry/pkg/v1/remote"
@@ -105,13 +104,19 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 		return response.VerificationFailed(fmt.Sprintf("failed to create notation verifier: %s", err.Error()))
 	}
 
+	remoteOpts, err := v.getRemoteOpts(ctx, requestData.Insecure)
+	if err != nil {
+		v.logger.Errorf("failed to get remote options: %s", err.Error())
+		return response.VerificationFailed(fmt.Sprintf("failed to get remote options: %s", err.Error()))
+	}
+
 	if !verificationFailed {
 		for _, image := range images.Containers {
 			if !matchImageReferences(requestData.ImageReferences, image.String()) {
 				v.logger.Infof("Skipping image %s", image.String())
 				continue
 			}
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData), remoteOpts)
 			if err != nil {
 				v.logger.Errorf("failed to verify container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify container %s: %v", image.Name, err.Error()))
@@ -131,7 +136,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				v.logger.Infof("Skipping image %s", image.String())
 				continue
 			}
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData), remoteOpts)
 			if err != nil {
 				v.logger.Errorf("failed to verify init container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify init container %s: %v", image.Name, err.Error()))
@@ -151,7 +156,7 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 				v.logger.Infof("Skipping image %s", image.String())
 				continue
 			}
-			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData))
+			result, err := v.verifyImageInfo(ctx, notationVerifier, image, ivm, v.getTrustPolicy(requestData), remoteOpts)
 			if err != nil {
 				v.logger.Errorf("failed to verify ephemeral container %s: %s", image.Name, err.Error())
 				return response.VerificationFailed(fmt.Sprintf("failed to verify ephemeral container: %s: %v", image.Name, err.Error()))
@@ -170,24 +175,24 @@ func (v *verifier) verifyImagesAndAttestations(ctx context.Context, requestData 
 	}
 	v.logger.Infof("built attestation list", response.GetImageList())
 
-	if err := v.verifyAttestations(ctx, notationVerifier, response, ivm, v.getTrustPolicy(requestData)); err != nil {
+	if err := v.verifyAttestations(ctx, notationVerifier, response, ivm, v.getTrustPolicy(requestData), remoteOpts); err != nil {
 		return response.VerificationFailed(fmt.Sprintf("failed to verify attestatations: %v", err.Error()))
 	}
 
 	return response.VerificationSucceeded("")
 }
 
-func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *notation.Verifier, response Response, ivm ImageVerifierMetatdata, trustPolicy string) error {
+func (v *verifier) verifyAttestations(ctx context.Context, notationVerifier *notation.Verifier, response Response, ivm ImageVerifierMetatdata, trustPolicy string, remoteOpts []gcrremote.Option) error {
 	v.logger.Infof("verifying attestations %v", response.GetImageList())
 	for image, list := range response.GetImageList() {
-		if err := v.verifyAttestation(ctx, notationVerifier, image, list, ivm, trustPolicy); err != nil {
+		if err := v.verifyAttestation(ctx, notationVerifier, image, list, ivm, trustPolicy, remoteOpts); err != nil {
 			return errors.Wrapf(err, "failed to verify attestations")
 		}
 	}
 	return nil
 }
 
-func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *notation.Verifier, image string, attestationList types.AttestationList, ivm ImageVerifierMetatdata, trustPolicy string) error {
+func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *notation.Verifier, image string, attestationList types.AttestationList, ivm ImageVerifierMetatdata, trustPolicy string, remoteOpts []gcrremote.Option) error {
 	v.logger.Infof("verifying attestation, image=%s; attestations=%v", image, attestationList)
 	if len(attestationList) == 0 {
 		return nil
@@ -195,11 +200,6 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 
 	if found := v.checkAllAttestationsForImage(trustPolicy, image, attestationList); found {
 		return nil
-	}
-
-	remoteOpts, err := v.getRemoteOpts(ctx, image)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get gcr remote opts")
 	}
 
 	ref, err := name.ParseReference(image)
@@ -250,7 +250,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		if ivm.IsVerified(referrerRef) {
 			v.logger.Infof("Reference present in the annotation, skipping %s", referrerRef)
 		} else {
-			digest, err := v.verifyReferences(ctx, notationVerifier, referrerRef)
+			digest, err := v.verifyReferences(ctx, notationVerifier, referrerRef, remoteOpts)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
 			}
@@ -351,7 +351,7 @@ func (v *verifier) fetchAndExtractPayload(ctx context.Context, repoRef name.Refe
 	return predicate, nil
 }
 
-func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo, ivm ImageVerifierMetatdata, trustPolicy string) (*types.ImageInfo, error) {
+func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notation.Verifier, image types.ImageInfo, ivm ImageVerifierMetatdata, trustPolicy string, remoteOpts []gcrremote.Option) (*types.ImageInfo, error) {
 	imgRef := image.String()
 	if ivm.IsVerified(imgRef) && isDigestReference(imgRef) {
 		v.logger.Infof("Reference present in the annotation, skipping %s", imgRef)
@@ -368,7 +368,7 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	v.logger.Infof("Entry not found in the cache verifying image=%s", imgRef)
 
 	v.logger.Infof("verifying image infos %+v", image)
-	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef)
+	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef, remoteOpts)
 	if err != nil {
 		v.logger.Errorf("verification failed for image %s: %v", image, err)
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
@@ -384,9 +384,9 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	return &image, nil
 }
 
-func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notation.Verifier, image string) (string, error) {
+func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notation.Verifier, image string, remoteOpts []gcrremote.Option) (string, error) {
 	v.logger.Infof("verifying image %s", image)
-	repo, reference, err := v.parseReferenceAndResolveDigest(ctx, image)
+	repo, reference, err := v.parseReferenceAndResolveDigest(ctx, image, remoteOpts)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to resolve digest")
 	}
@@ -438,29 +438,14 @@ func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notat
 	return desc.Digest.String(), nil
 }
 
-func (v *verifier) getRemoteOpts(ctx context.Context, ref string) ([]gcrremote.Option, error) {
-	if !strings.Contains(ref, "/") {
-		ref = "docker.io/library/" + ref
-	}
-
-	if !strings.Contains(ref, ":") {
-		ref = ref + ":latest"
-	}
-
-	parsedRef, err := registry.ParseReference(ref)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse reference %s", ref)
-	}
-
-	authConfig, err := v.getAuthConfig(ctx, parsedRef)
+func (v *verifier) getRemoteOpts(ctx context.Context, insecure bool) ([]gcrremote.Option, error) {
+	keychain, err := v.getKeychains(ctx)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve credentials")
 	}
 
-	authenticator := authn.FromConfig(*authConfig)
-
 	remoteOpts := []gcrremote.Option{}
-	remoteOpts = append(remoteOpts, gcrremote.WithAuth(authenticator))
+	remoteOpts = append(remoteOpts, gcrremote.WithAuthFromKeychain(keychain))
 
 	pusher, err := gcrremote.NewPusher(remoteOpts...)
 	if err != nil {
@@ -477,7 +462,7 @@ func (v *verifier) getRemoteOpts(ctx context.Context, ref string) ([]gcrremote.O
 	return remoteOpts, nil
 }
 
-func (v *verifier) parseReferenceAndResolveDigest(ctx context.Context, ref string) (notationregistry.Repository, registry.Reference, error) {
+func (v *verifier) parseReferenceAndResolveDigest(ctx context.Context, ref string, remoteOpts []gcrremote.Option) (notationregistry.Repository, registry.Reference, error) {
 	if !strings.Contains(ref, "/") {
 		ref = "docker.io/library/" + ref
 	}
@@ -505,7 +490,7 @@ func (v *verifier) parseReferenceAndResolveDigest(ctx context.Context, ref strin
 	repo.Client = authClient
 	repository := notationregistry.NewRepository(repo)
 
-	parsedRef, err = v.resolveDigest(repository, parsedRef)
+	parsedRef, err = v.resolveDigest(repository, parsedRef, remoteOpts)
 	if err != nil {
 		return nil, registry.Reference{}, errors.Wrapf(err, "failed to resolve digest")
 	}
@@ -514,7 +499,11 @@ func (v *verifier) parseReferenceAndResolveDigest(ctx context.Context, ref strin
 }
 
 func (v *verifier) getAuthClient(ctx context.Context, ref registry.Reference) (*auth.Client, bool, error) {
-	authConfig, err := v.getAuthConfig(ctx, ref)
+	keychain, err := v.getKeychains(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	authConfig, err := getAuthConfigFromKeychain(keychain, ref)
 	if err != nil {
 		return nil, false, err
 	}
@@ -545,13 +534,13 @@ func (v *verifier) getAuthClient(ctx context.Context, ref registry.Reference) (*
 	return authClient, false, nil
 }
 
-func (v *verifier) resolveDigest(repo notationregistry.Repository, ref registry.Reference) (registry.Reference, error) {
+func (v *verifier) resolveDigest(repo notationregistry.Repository, ref registry.Reference, remoteOpts []gcrremote.Option) (registry.Reference, error) {
 	if isDigestReference(ref.String()) {
 		return ref, nil
 	}
 
 	// Resolve tag reference to digest reference.
-	digest, err := v.getDigest(context.Background(), ref.String())
+	digest, err := v.getDigest(context.Background(), ref.String(), remoteOpts)
 	if err != nil {
 		return registry.Reference{}, err
 	}
@@ -570,14 +559,10 @@ func isDigestReference(reference string) bool {
 	return index != -1
 }
 
-func (v *verifier) getDigest(ctx context.Context, imageRef string) (string, error) {
+func (v *verifier) getDigest(ctx context.Context, imageRef string, remoteOpts []gcrremote.Option) (string, error) {
 	parsedRef, err := name.ParseReference(imageRef)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse image reference: %s, error: %v", imageRef, err)
-	}
-	remoteOpts, err := v.getRemoteOpts(ctx, imageRef)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to get gcr remote opts")
 	}
 	desc, err := gcrremote.Get(parsedRef, remoteOpts...)
 	if err != nil {

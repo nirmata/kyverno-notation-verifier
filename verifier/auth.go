@@ -11,11 +11,11 @@ import (
 	"oras.land/oras-go/v2/registry"
 )
 
-func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (*authn.AuthConfig, error) {
+func (v *verifier) getKeychains(ctx context.Context) (authn.Keychain, error) {
 	keychains := make([]authn.Keychain, 0)
 	keychains = append(keychains, authn.DefaultKeychain)
 	if v.imagePullSecrets != "" {
-		secretKeychain, err := v.getAuthFromSecret(ctx, ref)
+		secretKeychain, err := v.getKeychainFromSecret(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -26,22 +26,10 @@ func (v *verifier) getAuthConfig(ctx context.Context, ref registry.Reference) (*
 		keychains = append(keychains, v.providerKeychain)
 	}
 
-	keychain := authn.NewMultiKeychain(keychains...)
-
-	authenticator, err := keychain.Resolve(&imageResource{ref})
-	if err != nil {
-		return nil, err
-	}
-
-	authConfig, err := authenticator.Authorization()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get auth config for %s", ref.String())
-	}
-
-	return authConfig, nil
+	return authn.NewMultiKeychain(keychains...), nil
 }
 
-func (v *verifier) getAuthFromSecret(ctx context.Context, ref registry.Reference) (authn.Keychain, error) {
+func (v *verifier) getKeychainFromSecret(ctx context.Context) (authn.Keychain, error) {
 	if v.imagePullSecrets == "" {
 		return nil, errors.Errorf("secret not configured")
 	}
@@ -75,4 +63,18 @@ func (ir *imageResource) String() string {
 
 func (ir *imageResource) RegistryStr() string {
 	return ir.ref.Registry
+}
+
+func getAuthConfigFromKeychain(keychain authn.Keychain, ref registry.Reference) (*authn.AuthConfig, error) {
+	authenticator, err := keychain.Resolve(&imageResource{ref})
+	if err != nil {
+		return nil, err
+	}
+
+	authConfig, err := authenticator.Authorization()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get auth config for %s", ref.String())
+	}
+
+	return authConfig, nil
 }

@@ -56,6 +56,7 @@ func ProcessRequestData(req *types.RequestData) (*types.VerificationRequest, err
 		Images:          req.Images,
 		Attestations:    req.Attestations,
 		TrustPolicy:     req.TrustPolicy,
+		Insecure:        req.Insecure,
 		Metadata:        metadata,
 	}, nil
 }

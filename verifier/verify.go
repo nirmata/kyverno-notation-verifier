@@ -69,10 +69,11 @@ func newVerifier(logger *zap.SugaredLogger, opts ...verifierOptsFunc) (*verifier
 		o(v)
 	}
 
-	v.logger.Infof("Initializing cache cacheEnabled=%v, maxSize=%v. maxTTL=%v", v.useCache, v.maxCacheSize, v.maxCacheTTL)
+	v.logger.Infof("Initializing cache cacheEnabled=%v, maxSize=%v. maxTTL=%v, negativeTTL=%v", v.useCache, v.maxCacheSize, v.maxCacheTTL, v.negativeCacheTTL)
 	v.cache, err = cache.New(cache.WithCacheEnabled(v.useCache),
 		cache.WithMaxSize(v.maxCacheSize),
 		cache.WithTTLDuration(v.maxCacheTTL),
+		cache.WithNegativeTTLDuration(v.negativeCacheTTL),
 		cache.WithLogger(logger))
 	if err != nil {
 		v.logger.Errorf("failed to create cache client error: %v", err)
@@ -365,12 +366,31 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 		image.Image = *img
 		return &image, nil
 	}
+
+	// Negative cache lookup before the expensive network verification.
+	if reason, found := v.cache.GetFailure(trustPolicy, imgRef); found {
+		v.logger.Infof("Negative cache entry found for image=%s; trustpolicy=%s, returning cached failure", imgRef, trustPolicy)
+		return nil, errors.Errorf("verification failed for image %s (cached result, TTL-bounded): %s", image, reason)
+	}
 	v.logger.Infof("Entry not found in the cache verifying image=%s", imgRef)
 
 	v.logger.Infof("verifying image infos %+v", image)
 	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef, remoteOpts)
 	if err != nil {
 		v.logger.Errorf("verification failed for image %s: %v", image, err)
+		// Cache the failure with a short TTL so bursts for the same image do
+		// not re-run the full verification. This covers every
+		// verifyReferences error (including transient AWS Signer/ECR errors);
+		// the short TTL bounds how long such a result sticks. A cache write
+		// must never change the response, so its error is only logged.
+		// Client-side cancellation (ctx.Err() != nil, e.g. kyverno
+		// apiCallTimeout) is explicitly excluded: that was not our own
+		// verification decision.
+		if ctx.Err() == nil {
+			if cacheErr := v.cache.AddFailure(trustPolicy, imgRef, err.Error()); cacheErr != nil {
+				v.logger.Errorf("failed to add negative cache entry for image %s: %v", image, cacheErr)
+			}
+		}
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
 	}
 

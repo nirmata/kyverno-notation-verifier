@@ -17,6 +17,14 @@ type Cache interface {
 
 	GetImage(trustPolicy string, imageRef string) (*types.Image, bool)
 
+	// AddFailure caches a FAILED verification result with a short TTL so that
+	// bursts of admission requests for the same unsigned image do not each
+	// trigger a full AWS Signer / OCI referrer lookup.
+	AddFailure(trustPolicy string, imageRef string, reason string) error
+
+	// GetFailure returns the cached failure reason, if any.
+	GetFailure(trustPolicy string, imageRef string) (string, bool)
+
 	AddAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) error
 
 	GetAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) bool
@@ -29,24 +37,30 @@ const (
 )
 
 type cache struct {
-	log       *zap.SugaredLogger
-	useCache  bool
-	ttl       time.Duration
-	maxSize   int64
-	ristretto *ristretto.Cache
+	log         *zap.SugaredLogger
+	useCache    bool
+	ttl         time.Duration
+	negativeTTL time.Duration
+	maxSize     int64
+	ristretto   *ristretto.Cache
 }
 
 type Option = func(*cache) error
 
 func New(options ...Option) (Cache, error) {
 	cache := &cache{
-		ttl:     1 * time.Hour,
-		maxSize: 1000,
+		ttl:         1 * time.Hour,
+		negativeTTL: 20 * time.Minute,
+		maxSize:     1000,
 	}
 	for _, opt := range options {
 		if err := opt(cache); err != nil {
 			return nil, err
 		}
+	}
+
+	if cache.negativeTTL == 0 {
+		cache.negativeTTL = 20 * time.Minute
 	}
 
 	if cache.maxSize == 0 {
@@ -89,6 +103,13 @@ func WithMaxSize(s int64) Option {
 func WithTTLDuration(t time.Duration) Option {
 	return func(c *cache) error {
 		c.ttl = t
+		return nil
+	}
+}
+
+func WithNegativeTTLDuration(t time.Duration) Option {
+	return func(c *cache) error {
+		c.negativeTTL = t
 		return nil
 	}
 }
@@ -138,6 +159,37 @@ func (c *cache) GetImage(trustPolicy string, imageRef string) (*types.Image, boo
 	}
 	c.log.Infof("Entry found in the cache %s entry=%v", key, val)
 	return &val, true
+}
+
+func (c *cache) AddFailure(trustPolicy string, imageRef string, reason string) error {
+	c.log.Infof("Adding negative cache entry (TTL=%s): trustPolicy=%s, imageRef=%s, reason=%s",
+		c.negativeTTL, trustPolicy, imageRef, reason)
+	if !c.useCache {
+		return nil
+	}
+	key := createFailureKey(trustPolicy, imageRef)
+	if ok := c.ristretto.SetWithTTL(key, reason, 0, c.negativeTTL); !ok {
+		c.log.Errorf("could not create negative cache entry for key=%s", key)
+		return errors.Errorf("could not create negative cache entry for key=%s", key)
+	}
+	return nil
+}
+
+func (c *cache) GetFailure(trustPolicy string, imageRef string) (string, bool) {
+	if !c.useCache {
+		return "", false
+	}
+	key := createFailureKey(trustPolicy, imageRef)
+	entry, ok := c.ristretto.Get(key)
+	if !ok {
+		return "", false
+	}
+	reason, ok := entry.(string)
+	if !ok {
+		return "", false
+	}
+	c.log.Infof("Negative cache hit for key=%s (skipping re-verification)", key)
+	return reason, true
 }
 
 func (c *cache) AddAttestation(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) error {
@@ -190,6 +242,10 @@ func (c *cache) Clear() {
 
 func createImageKey(trustPolicy string, imageRef string) string {
 	return fmt.Sprintf("%s;%s", trustPolicy, imageRef)
+}
+
+func createFailureKey(trustPolicy string, imageRef string) string {
+	return fmt.Sprintf("fail;%s;%s", trustPolicy, imageRef)
 }
 
 func createAttestationKey(trustPolicy string, imageRef string, attestationType string, conditions []kyvernov1.AnyAllConditions) (string, error) {

@@ -49,6 +49,7 @@ type verifier struct {
 	useCache                bool
 	reviewToken             bool
 	maxCacheTTL             time.Duration
+	negativeCacheTTL        time.Duration
 	debug                   bool
 	stopCh                  chan struct{}
 	engineContext           enginecontext.Interface
@@ -91,6 +92,12 @@ func WithMaxCacheSize(maxCacheSize int64) verifierOptsFunc {
 func WithMaxCacheTTL(maxCacheTTL time.Duration) verifierOptsFunc {
 	return func(v *verifier) {
 		v.maxCacheTTL = maxCacheTTL
+	}
+}
+
+func WithNegativeCacheTTL(negativeCacheTTL time.Duration) verifierOptsFunc {
+	return func(v *verifier) {
+		v.negativeCacheTTL = negativeCacheTTL
 	}
 }
 

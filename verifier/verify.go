@@ -251,7 +251,7 @@ func (v *verifier) verifyAttestation(ctx context.Context, notationVerifier *nota
 		if ivm.IsVerified(referrerRef) {
 			v.logger.Infof("Reference present in the annotation, skipping %s", referrerRef)
 		} else {
-			digest, err := v.verifyReferences(ctx, notationVerifier, referrerRef, remoteOpts)
+			digest, err := v.verifyReferences(ctx, notationVerifier, referrerRef, trustPolicy, remoteOpts)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get referrer of artifact type %s %s %s", ref.String(), referrer.Digest.String(), referrer.ArtifactType)
 			}
@@ -370,27 +370,14 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	// Negative cache lookup before the expensive network verification.
 	if reason, found := v.cache.GetFailure(trustPolicy, imgRef); found {
 		v.logger.Infof("Negative cache entry found for image=%s; trustpolicy=%s, returning cached failure", imgRef, trustPolicy)
-		return nil, errors.Errorf("verification failed for image %s (cached result, TTL-bounded): %s", image, reason)
+		return nil, errors.Errorf("failed to verify image %s: %s (cached result)", image, reason)
 	}
 	v.logger.Infof("Entry not found in the cache verifying image=%s", imgRef)
 
 	v.logger.Infof("verifying image infos %+v", image)
-	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef, remoteOpts)
+	digest, err := v.verifyReferences(ctx, notationVerifier, imgRef, trustPolicy, remoteOpts)
 	if err != nil {
 		v.logger.Errorf("verification failed for image %s: %v", image, err)
-		// Cache the failure with a short TTL so bursts for the same image do
-		// not re-run the full verification. This covers every
-		// verifyReferences error (including transient AWS Signer/ECR errors);
-		// the short TTL bounds how long such a result sticks. A cache write
-		// must never change the response, so its error is only logged.
-		// Client-side cancellation (ctx.Err() != nil, e.g. kyverno
-		// apiCallTimeout) is explicitly excluded: that was not our own
-		// verification decision.
-		if ctx.Err() == nil {
-			if cacheErr := v.cache.AddFailure(trustPolicy, imgRef, err.Error()); cacheErr != nil {
-				v.logger.Errorf("failed to add negative cache entry for image %s: %v", image, cacheErr)
-			}
-		}
 		return nil, errors.Wrapf(err, "failed to verify image %s", image)
 	}
 
@@ -404,7 +391,19 @@ func (v *verifier) verifyImageInfo(ctx context.Context, notationVerifier *notati
 	return &image, nil
 }
 
-func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notation.Verifier, image string, remoteOpts []gcrremote.Option) (string, error) {
+// cacheFailure stores a signature-decision failure with a short TTL so bursts
+// for the same image do not re-run the full verification. Only the
+// notation.Verify outcome is cached here — local errors (digest resolution,
+// plugin configmap fetch) are deliberately left uncached so they are retried
+// immediately. A cache write must never change the response, so its error is
+// only logged.
+func (v *verifier) cacheFailure(trustPolicy string, image string, err error) {
+	if cacheErr := v.cache.AddFailure(trustPolicy, image, err.Error()); cacheErr != nil {
+		v.logger.Errorf("failed to add negative cache entry for image %s: %v", image, cacheErr)
+	}
+}
+
+func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notation.Verifier, image string, trustPolicy string, remoteOpts []gcrremote.Option) (string, error) {
 	v.logger.Infof("verifying image %s", image)
 	repo, reference, err := v.parseReferenceAndResolveDigest(ctx, image, remoteOpts)
 	if err != nil {
@@ -438,6 +437,7 @@ func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notat
 	desc, outcomes, err := notation.Verify(nlog, *notationVerifier, repo, opts)
 	if err != nil {
 		v.logger.Infof("Verfication failed %v", err)
+		v.cacheFailure(trustPolicy, image, err)
 		return "", err
 	}
 
@@ -450,6 +450,7 @@ func (v *verifier) verifyReferences(ctx context.Context, notationVerifier *notat
 
 	if len(errs) > 0 {
 		err := multierr.Combine(errs...)
+		v.cacheFailure(trustPolicy, image, err)
 		return "", err
 	}
 

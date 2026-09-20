@@ -1,5 +1,5 @@
 ARG BUILD_PLATFORM="linux/amd64"
-ARG BUILDER_IMAGE="golang:1.22"
+ARG BUILDER_IMAGE="golang:1.26"
 
 FROM --platform=$BUILD_PLATFORM $BUILDER_IMAGE as builder
 

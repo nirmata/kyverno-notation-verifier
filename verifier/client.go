@@ -54,6 +54,8 @@ type verifier struct {
 	engineContext           enginecontext.Interface
 	cache                   cache.Cache
 	allowedUsers            []string
+	// tokenAudiences is passed to TokenReview; empty means the API server's own.
+	tokenAudiences          []string
 }
 
 type verifierOptsFunc func(*verifier)
@@ -112,6 +114,15 @@ func WithEnableDebug(debug bool) verifierOptsFunc {
 	}
 }
 
+// WithTokenAudiences sets the audiences a caller's token must be intended for.
+// Leave unset to validate against the API server's own audience, the behaviour
+// of releases before this option existed.
+func WithTokenAudiences(audiences []string) verifierOptsFunc {
+	return func(v *verifier) {
+		v.tokenAudiences = audiences
+	}
+}
+
 func WithAllowedUsers(users []string) verifierOptsFunc {
 	return func(v *verifier) {
 		v.allowedUsers = users
@@ -159,9 +170,15 @@ func (v *verifier) HandleCheckImages(w http.ResponseWriter, r *http.Request) {
 		}
 		reqToken = splitToken[1]
 
+		// Audiences must name what this service accepts. Left empty, the API
+		// server validates against its own audience, which rejects a caller
+		// sending a scoped token minted for a different audience — for example
+		// Kyverno's apiCallToken, whose whole purpose is to be unusable against
+		// the API server. Empty preserves the previous behaviour.
 		tr := authv1.TokenReview{
 			Spec: authv1.TokenReviewSpec{
-				Token: reqToken,
+				Token:     reqToken,
+				Audiences: v.tokenAudiences,
 			},
 		}
 
